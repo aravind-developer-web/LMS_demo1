@@ -16,15 +16,22 @@ export const AuthProvider = ({ children }) => {
         const token = localStorage.getItem('access_token');
         if (token) {
             try {
+                // Attempt to validate session
                 const response = await api.get('/auth/me/');
-                setUser(response.data);
+                if (response.data) {
+                    setUser(response.data);
+                } else {
+                    throw new Error('Invalid user data');
+                }
             } catch (error) {
-                console.warn("Session check failed:", error);
+                console.warn("Session validation failed:", error);
+                // Graceful degradation: clear token but don't crash
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 setUser(null);
             }
         }
+        // Always finish loading
         setLoading(false);
     };
 

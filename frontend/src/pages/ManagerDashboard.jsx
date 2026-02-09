@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
-import { Users, BookOpen, CheckCircle, AlertCircle, TrendingUp, BarChart3, Clock, ArrowUpRight, ArrowDownRight, Search, Zap } from 'lucide-react';
+import { Users, BookOpen, CheckCircle, AlertCircle, TrendingUp, BarChart3, Clock, ArrowUpRight, ArrowDownRight, Search, Zap, X } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, Legend, AreaChart, Area

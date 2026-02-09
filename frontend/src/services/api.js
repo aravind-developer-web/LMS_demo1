@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
+    // Fallback to localhost if env specific var is missing, but also allow relative path for same-domain
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
     headers: {
         'Content-Type': 'application/json',
