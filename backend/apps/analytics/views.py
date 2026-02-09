@@ -42,15 +42,53 @@ class TeamStatsView(views.APIView):
                 "completions": completions
             })
 
+        # Assignment Stats
+        total_assignments = Assignment.objects.count()
+        pending_review = Submission.objects.filter(status='pending').count()
+
         return Response({
             "summary": {
                 "total_learners": total_learners,
                 "total_completions": total_completions,
                 "completion_rate": (total_completions / total_enrollments * 100) if total_enrollments > 0 else 0,
-                "avg_quiz_score": round(avg_quiz_score, 1)
+                "avg_quiz_score": round(avg_quiz_score, 1),
+                "assignments_pending": pending_review,
+                "total_assignments": total_assignments
             },
             "timeline": last_7_days
         })
+
+class RecentActivityView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in ['manager', 'admin']:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Fetch recent quiz attempts
+        quiz_attempts = QuizAttempt.objects.select_related('user', 'quiz').order_by('-timestamp')[:5]
+        attempts_data = [{
+            "type": "quiz",
+            "user": a.user.username,
+            "title": a.quiz.title,
+            "status": f"{a.score}% - {'Passed' if a.passed else 'Failed'}",
+            "time": a.timestamp
+        } for a in quiz_attempts]
+
+        # Fetch recent assignment submissions
+        submissions = Submission.objects.select_related('assignment__user', 'assignment__module').order_by('-submitted_at')[:5]
+        submissions_data = [{
+            "type": "assignment",
+            "user": s.assignment.user.username,
+            "title": s.assignment.module.title,
+            "status": "Submitted",
+            "time": s.submitted_at
+        } for s in submissions]
+
+        # Combine and sort
+        combined = sorted(attempts_data + submissions_data, key=lambda x: x['time'], reverse=True)[:10]
+        
+        return Response(combined)
 
 class StuckLearnersView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]

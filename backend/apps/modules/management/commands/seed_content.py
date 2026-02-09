@@ -164,7 +164,7 @@ class Command(BaseCommand):
                 "difficulty": "advanced",
                 "resources": [
                     {"title": "Web Performance Optimization", "type": "video", "url": "https://www.youtube.com/watch?v=0fONene3OIA"},
-                    {"title": "Security Best Practices", "type": "video", "url": "https://www.youtube.com/watch?v=F7JT2yj5i1I"},
+                    {"title": "Security Best Practices", "type": "video", "url": "https://www.youtube.com/watch?v=lPAQiBtWqjM"},
                     {"title": "Monitoring & Logging", "type": "video", "url": "https://www.youtube.com/watch?v=aV0oxKGJV2g"},
                     {"title": "Kubernetes Crash Course", "type": "video", "url": "https://www.youtube.com/watch?v=s_o8dwzRlu4"},
                     {"title": "Full Stack Capstone Project", "type": "video", "url": "https://www.youtube.com/watch?v=nu_pCVPKzTk"},

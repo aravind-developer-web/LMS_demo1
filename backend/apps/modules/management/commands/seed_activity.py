@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from apps.modules.models import Module, ModuleProgress, Resource, ResourceProgress
 from apps.quiz.models import Quiz, QuizAttempt
+from apps.assignments.models import Assignment, Submission
 from apps.authapp.models import User
 from django.utils import timezone
 from datetime import timedelta
@@ -76,6 +77,32 @@ class Command(BaseCommand):
                             score=score,
                             passed=passed,
                             timestamp=timezone.now() - timedelta(days=random.randint(0, 5))
+                        )
+
+                # 4. Simulate Assignment Submissions
+                if hasattr(module, 'assignments') and module.has_assignment: 
+                    # Create the Assignment tracking record (Mocking logic)
+                    assignment, created = Assignment.objects.get_or_create(
+                        user=learner,
+                        module=module,
+                        defaults={
+                            'status': 'pending',
+                            'due_date': timezone.now() + timedelta(days=7)
+                        }
+                    )
+                    
+                    if status == 'completed' or (status == 'in_progress' and random.random() > 0.6):
+                        assignment.status = 'completed'
+                        assignment.completed_at = timezone.now() - timedelta(days=random.randint(1, 3))
+                        assignment.save()
+
+                        # Create the Submission
+                        Submission.objects.create(
+                            assignment=assignment,
+                            content=f"Strategic analysis of {module.title} completed. Key findings include optimal node deployment and lattice structure integrity.",
+                            status='pending' if random.random() > 0.5 else 'graded',
+                            submitted_at=assignment.completed_at,
+                            grade=random.randint(80, 100) if random.random() > 0.5 else None
                         )
 
         self.stdout.write(self.style.SUCCESS('Successfully seeded learner activity.'))

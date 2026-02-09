@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'apps.notes',
     'apps.analytics',
     'apps.management',
+    'apps.discussions',
 ]
 
 MIDDLEWARE = [

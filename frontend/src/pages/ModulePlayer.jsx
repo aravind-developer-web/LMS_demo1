@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { CheckCircle, BookOpen, FileText, Video, Lock, ExternalLink, ArrowLeft, ChevronRight, Zap, PlayCircle, Maximize2, Monitor, Layout, Columns } from 'lucide-react';
+import { CheckCircle, BookOpen, FileText, Video, Lock, ExternalLink, ArrowLeft, ChevronRight, Zap, PlayCircle, Maximize2, Monitor, Layout, Columns, ArrowRight } from 'lucide-react';
 import NotesPanel from '../components/module/NotesPanel';
+import QAPanel from '../components/module/QAPanel';
 
 const ModulePlayer = () => {
     const { id } = useParams();
@@ -16,6 +17,7 @@ const ModulePlayer = () => {
     const [submissions, setSubmissions] = useState([]);
     const [watchTime, setWatchTime] = useState(0);
     const [isCinemaMode, setIsCinemaMode] = useState(false);
+    const [activeTab, setActiveTab] = useState('notes');
 
     useEffect(() => {
         fetchModuleData();
@@ -184,23 +186,6 @@ const ModulePlayer = () => {
                                     );
                                 })}
                             </div>
-
-                            {/* Evaluation Tier */}
-                            {(module.has_assignment || module.has_quiz) && (
-                                <div className="mt-8 pt-8 border-t border-white/5 space-y-4">
-                                    <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.3em] pl-2">Neural Validation</h3>
-                                    {module.has_quiz && (
-                                        <Button onClick={handleQuizStart} disabled={!allResourcesDone} className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-primary text-white font-black uppercase tracking-widest text-[10px]">
-                                            Initiate Quiz <ChevronRight size={14} className="ml-2" />
-                                        </Button>
-                                    )}
-                                    {module.has_assignment && (
-                                        <Button onClick={() => navigate(`/modules/${id}/assignment`)} disabled={!allResourcesDone} className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 hover:bg-primary text-white font-black uppercase tracking-widest text-[10px]">
-                                            Initiate Research <FileText size={14} className="ml-2" />
-                                        </Button>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}
@@ -285,16 +270,66 @@ const ModulePlayer = () => {
                     </div>
                 </div>
 
-                {/* Knowledge Journal - Only visible if not in Cinema Mode */}
                 {!isCinemaMode && (
-                    <div className="w-full flex-shrink-0 animate-in delay-200">
-                        <div className="premium-card bg-black/40 border-white/5 h-[700px] flex flex-col p-0 overflow-hidden">
-                            <NotesPanel moduleId={id} />
+                    <div className="w-full flex-shrink-0 animate-in delay-200 flex flex-col gap-4">
+                        <div className="flex flex-col">
+                            <div className="flex bg-black/40 border border-white/5 rounded-t-2xl overflow-hidden mb-px">
+                                <button
+                                    onClick={() => setActiveTab('notes')}
+                                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'notes' ? 'bg-primary/20 text-primary shadow-[inset_0_-2px_0_0_rgba(var(--primary))]' : 'bg-transparent text-white/20 hover:bg-white/5 hover:text-white/60'}`}
+                                >
+                                    Archive / Notes
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('qa')}
+                                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'qa' ? 'bg-primary/20 text-primary shadow-[inset_0_-2px_0_0_rgba(var(--primary))]' : 'bg-transparent text-white/20 hover:bg-white/5 hover:text-white/60'}`}
+                                >
+                                    Neural Net / Q&A
+                                </button>
+                            </div>
+                            <div className="premium-card bg-black/40 border-white/5 h-[500px] flex flex-col p-0 overflow-hidden rounded-t-none">
+                                {activeTab === 'notes' ? <NotesPanel moduleId={id} /> : <QAPanel moduleId={id} />}
+                            </div>
+                        </div>
+
+                        {/* Directives Section (Quiz & Assignment) */}
+                        <div className="space-y-4">
+                            {module.has_assignment && (
+                                <div className="premium-card bg-purple-500/5 border-purple-500/20 p-6 rounded-3xl relative overflow-hidden group hover:bg-purple-500/10 transition-colors">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-purple-500/20 transition-all" />
+                                    <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400 mb-2 flex items-center gap-2">
+                                        <FileText size={10} /> Active Directive
+                                    </h4>
+                                    <p className="text-sm font-bold text-white mb-4 italic">Manager Assignment Pending Analysis</p>
+                                    <Button
+                                        onClick={() => navigate(`/modules/${id}/assignment`)}
+                                        className="w-full h-10 bg-purple-500 hover:bg-purple-400 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-purple-500/20"
+                                    >
+                                        Engage Protocol <ArrowRight size={12} className="ml-2" />
+                                    </Button>
+                                </div>
+                            )}
+
+                            {module.has_quiz && (
+                                <div className="premium-card bg-blue-500/5 border-blue-500/20 p-6 rounded-3xl relative overflow-hidden group hover:bg-blue-500/10 transition-colors">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-blue-500/20 transition-all" />
+                                    <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-400 mb-2 flex items-center gap-2">
+                                        <CheckCircle size={10} /> Neural Validation
+                                    </h4>
+                                    <p className="text-sm font-bold text-white mb-4 italic">Knowledge Check Available</p>
+                                    <Button
+                                        onClick={handleQuizStart}
+                                        className="w-full h-10 bg-blue-500 hover:bg-blue-400 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-lg shadow-blue-500/20"
+                                    >
+                                        Initiate Scan <Maximize2 size={12} className="ml-2" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

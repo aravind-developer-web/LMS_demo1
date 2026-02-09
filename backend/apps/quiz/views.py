@@ -5,6 +5,15 @@ from django.shortcuts import get_object_or_404
 from .models import Quiz, QuizAttempt, Question, Answer
 from .serializers import QuizSerializer, QuizAttemptSerializer
 
+class QuizListView(generics.ListAPIView):
+    serializer_class = QuizSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Return quizzes for modules the learner sees
+        return Quiz.objects.filter(module__isnull=False) # Simplified for now, can filter by enrollment
+
+
 class QuizDetailView(generics.RetrieveAPIView):
     queryset = Quiz.objects.all()
     serializer_class = QuizSerializer

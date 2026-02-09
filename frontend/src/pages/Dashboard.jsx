@@ -4,25 +4,31 @@ import api from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
-import { PlayCircle, CheckCircle, Clock, BookOpen, GraduationCap, Trophy, ArrowRight, Zap, Layout, Monitor, ExternalLink } from 'lucide-react';
+import { PlayCircle, CheckCircle, Clock, BookOpen, GraduationCap, Trophy, ArrowRight, Zap, Layout, Monitor, ExternalLink, FileText, ClipboardList } from 'lucide-react';
 
 const Dashboard = () => {
     const { user } = useAuth();
     const [modules, setModules] = useState([]);
     const [progress, setProgress] = useState({});
+    const [quizzes, setQuizzes] = useState([]);
+    const [assignments, setAssignments] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchModulesAndProgress();
+        fetchData();
     }, []);
 
-    const fetchModulesAndProgress = async () => {
+    const fetchData = async () => {
         try {
-            const [modulesRes, progressRes] = await Promise.all([
+            const [modulesRes, progressRes, quizRes, assignRes] = await Promise.all([
                 api.get('/modules/'),
-                api.get('/modules/my-progress/').catch(() => ({ data: [] }))
+                api.get('/modules/my-progress/').catch(() => ({ data: [] })),
+                api.get('/quiz/').catch(() => ({ data: [] })),
+                api.get('/assignments/').catch(() => ({ data: [] }))
             ]);
             setModules(modulesRes.data);
+            setQuizzes(quizRes.data);
+            setAssignments(assignRes.data);
 
             // Convert progress array to lookup object
             const progressMap = {};
@@ -33,7 +39,7 @@ const Dashboard = () => {
             }
             setProgress(progressMap);
         } catch (error) {
-            console.error("Failed to fetch modules", error);
+            console.error("Failed to fetch dashboard data", error);
         } finally {
             setLoading(false);
         }
@@ -70,7 +76,6 @@ const Dashboard = () => {
     };
 
     if (loading) return (
-        // ... existing loading UI ...
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-muted-foreground font-medium">Synchronizing your progress...</p>
@@ -99,17 +104,6 @@ const Dashboard = () => {
                             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Intel Multiplier</span>
                             <span className="font-black italic text-sm text-primary">X{1.2 + (completedCount * 0.1)}</span>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-4 bg-slate-950/40 backdrop-blur-xl border border-white/5 px-6 py-3 rounded-[24px] shadow-2xl h-14">
-                        <Clock className="text-orange-500" size={20} />
-                        <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Neural Streak</span>
-                            <span className="font-black italic text-sm">12 DAYS</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4 bg-slate-950/40 backdrop-blur-xl border border-white/5 px-6 py-3 rounded-[24px] shadow-2xl h-14">
-                        <Trophy className="text-yellow-500" size={20} />
-                        <span className="font-black italic text-sm">{completedCount} Modules Certified</span>
                     </div>
                 </div>
             </div>
@@ -156,7 +150,7 @@ const Dashboard = () => {
                 </div>
             )}
 
-            {/* Intel Grid: Knowledge & Matrix */}
+            {/* Intel Grid: Knowledge & Matrix (Videos) - RESTORED TO TOP */}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12">
 
                 {/* Curriculum Stack */}
@@ -234,34 +228,6 @@ const Dashboard = () => {
                         })}
                     </div>
 
-                    {/* Personal Vault Overlay */}
-                    {personalIntel.length > 0 && (
-                        <div className="pt-12 space-y-8">
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20 px-4">Local Intelligence Vault</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {personalIntel.map((intel) => (
-                                    <a
-                                        key={intel.id}
-                                        href={intel.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="group p-8 rounded-[40px] bg-slate-900/40 border border-white/5 hover:border-blue-500/50 transition-all duration-700 shadow-2xl h-44 flex flex-col justify-between relative overflow-hidden"
-                                    >
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-blue-500/10 transition-colors" />
-                                        <div className="space-y-4 relative z-10">
-                                            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20 group-hover:scale-110 transition-transform">
-                                                <ExternalLink size={18} />
-                                            </div>
-                                            <h4 className="font-black text-xl uppercase italic group-hover:text-blue-400 transition-colors truncate">{intel.title}</h4>
-                                        </div>
-                                        <div className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] flex items-center gap-2">
-                                            External Intelligence Node <ArrowRight size={12} className="group-hover:translate-x-2 transition-transform" />
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* Lateral Sidebar Intelligence */}
@@ -307,6 +273,65 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Task Matrix: Quizzes & Assignments MOVED TO BOTTOM */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Card className="bg-[#030712] border-white/5 rounded-[32px] overflow-hidden p-0">
+                    <div className="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                        <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground flex items-center gap-3">
+                            <ClipboardList className="text-purple-500" size={24} /> Active Assignments
+                        </h3>
+                        <span className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 text-[10px] font-black uppercase tracking-widest border border-purple-500/20">{assignments.length} PENDING</span>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        {assignments.length === 0 ? (
+                            <div className="text-center py-8 text-white/20 text-xs font-black uppercase tracking-widest">No Active Directives</div>
+                        ) : (
+                            assignments.map(a => (
+                                <div key={a.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex justify-between items-center group hover:border-purple-500/30 transition-all">
+                                    <div>
+                                        <p className="text-xs font-black text-white uppercase tracking-wide mb-1">{a.module_title || `Module ${a.module}`}</p>
+                                        <p className="text-[10px] text-white/40 uppercase tracking-widest">{a.status}</p>
+                                    </div>
+                                    <Link to={`/modules/${a.module}/assignment`}>
+                                        <Button size="sm" className="h-8 bg-purple-500/20 text-purple-500 hover:bg-purple-500 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-lg">
+                                            Engage
+                                        </Button>
+                                    </Link>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </Card>
+
+                <Card className="bg-[#030712] border-white/5 rounded-[32px] overflow-hidden p-0">
+                    <div className="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                        <h3 className="text-xl font-black italic uppercase tracking-tight text-foreground flex items-center gap-3">
+                            <FileText className="text-blue-500" size={24} /> Knowledge Checks
+                        </h3>
+                        <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-widest border border-blue-500/20">{quizzes.length} AVAILABLE</span>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        {quizzes.length === 0 ? (
+                            <div className="text-center py-8 text-white/20 text-xs font-black uppercase tracking-widest">No Active Checks</div>
+                        ) : (
+                            quizzes.map(q => (
+                                <div key={q.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex justify-between items-center group hover:border-blue-500/30 transition-all">
+                                    <div className="flex-1 min-w-0 mr-4">
+                                        <p className="text-xs font-black text-white uppercase tracking-wide mb-1 truncate">{q.title}</p>
+                                        <p className="text-[10px] text-white/40 uppercase tracking-widest">{q.questions_count} Questions</p>
+                                    </div>
+                                    <Link to={`/modules/${q.module}/quiz`}>
+                                        <Button size="sm" className="h-8 bg-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-lg">
+                                            Execute
+                                        </Button>
+                                    </Link>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </Card>
             </div>
         </div>
     );

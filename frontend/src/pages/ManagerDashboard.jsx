@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
-import { Users, BookOpen, CheckCircle, AlertCircle, TrendingUp, BarChart3, Clock, ArrowUpRight, ArrowDownRight, Search, Zap, X } from 'lucide-react';
+import { Users, BookOpen, CheckCircle, AlertCircle, TrendingUp, BarChart3, Clock, ArrowUpRight, ArrowDownRight, Search, Zap, X, Plus, Video, Link as LinkIcon, Send, Layers } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, Legend, AreaChart, Area
@@ -46,11 +46,27 @@ const ManagerDashboard = () => {
     const [velocityData, setVelocityData] = useState(null);
     const [learners, setLearners] = useState([]);
     const [notices, setNotices] = useState([]);
+    const [recentActivity, setRecentActivity] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // User Management State
     const [showAddUser, setShowAddUser] = useState(false);
     const [newUserName, setNewUserName] = useState('');
     const [newUserEmail, setNewUserEmail] = useState('');
     const [newUserPass, setNewUserPass] = useState('');
+
+    // Course Management State
+    const [modules, setModules] = useState([]);
+    const [showCreateModule, setShowCreateModule] = useState(false);
+    const [newModuleTitle, setNewModuleTitle] = useState('');
+    const [newModuleDesc, setNewModuleDesc] = useState('');
+
+    const [activeModuleForResource, setActiveModuleForResource] = useState(null);
+    const [newResourceTitle, setNewResourceTitle] = useState('');
+    const [newResourceUrl, setNewResourceUrl] = useState('');
+
+    const [activeModuleForAssign, setActiveModuleForAssign] = useState(null);
+    const [selectedLearnerForAssign, setSelectedLearnerForAssign] = useState('');
 
     useEffect(() => {
         fetchAllData();
@@ -74,7 +90,9 @@ const ManagerDashboard = () => {
             safeFetch('/analytics/module-stats/', setModuleStats),
             safeFetch('/analytics/team-velocity/', setVelocityData),
             safeFetch('/auth/learners/', setLearners),
-            safeFetch('/management/notices/', setNotices)
+            safeFetch('/management/notices/', setNotices),
+            safeFetch('/analytics/recent-activity/', setRecentActivity),
+            safeFetch('/modules/', setModules)
         ]);
         setLoading(false);
     };
@@ -88,6 +106,9 @@ const ManagerDashboard = () => {
             });
             toast.success('Unit Integrated Successfully');
             setShowAddUser(false);
+            setNewUserName('');
+            setNewUserEmail('');
+            setNewUserPass('');
             fetchAllData();
         } catch (err) {
             toast.error('Integration Failed');
@@ -115,6 +136,59 @@ const ManagerDashboard = () => {
             toast.success('Validation Certificate Issued');
         } catch (err) {
             toast.error('Validation Failed');
+        }
+    };
+
+    const handleCreateModule = async () => {
+        try {
+            await api.post('/modules/', {
+                title: newModuleTitle,
+                description: newModuleDesc,
+                duration: 0,
+                difficulty: 'intermediate'
+            });
+            toast.success('Course Module Initialized');
+            setShowCreateModule(false);
+            setNewModuleTitle('');
+            setNewModuleDesc('');
+            // Refresh modules
+            const res = await api.get('/modules/');
+            setModules(res.data);
+            fetchAllData(); // Update stats too
+        } catch (err) {
+            toast.error('Initialization Failed');
+        }
+    };
+
+    const handleAddResource = async () => {
+        if (!activeModuleForResource) return;
+        try {
+            await api.post(`/modules/${activeModuleForResource}/resources/`, {
+                title: newResourceTitle,
+                type: 'video',
+                url: newResourceUrl,
+                module: activeModuleForResource
+            });
+            toast.success('Neural Resource Linked');
+            setActiveModuleForResource(null);
+            setNewResourceTitle('');
+            setNewResourceUrl('');
+        } catch (err) {
+            toast.error('Linkage Failed');
+        }
+    };
+
+    const handleAssignModule = async () => {
+        if (!activeModuleForAssign || !selectedLearnerForAssign) return;
+        try {
+            await api.post(`/modules/${activeModuleForAssign}/assign/`, {
+                learner_id: selectedLearnerForAssign
+            });
+            toast.success('Directive Assigned to Unit');
+            setActiveModuleForAssign(null);
+            setSelectedLearnerForAssign('');
+        } catch (err) {
+            toast.error('Assignment Failed');
         }
     };
 
@@ -150,9 +224,9 @@ const ManagerDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                     { label: "Active Units", value: teamStats?.summary?.total_learners || 0, icon: Users, color: "text-blue-400", bg: "bg-blue-400/10", trend: 12 },
+                    { label: "Pending Reviews", value: teamStats?.summary?.assignments_pending || 0, icon: AlertCircle, color: "text-orange-400", bg: "bg-orange-400/10", trend: 0 },
                     { label: "Total Validations", value: teamStats?.summary?.total_completions || 0, icon: CheckCircle, color: "text-green-400", bg: "bg-green-400/10", trend: 8 },
                     { label: "Average Precision", value: `${(teamStats?.summary?.avg_quiz_score || 0).toFixed(1)}%`, icon: TrendingUp, color: "text-primary", bg: "bg-primary/10", trend: 5 },
-                    { label: "Global Velocity", value: `${Math.round(teamStats?.summary?.completion_rate || 0)}%`, icon: BarChart3, color: "text-purple-400", bg: "bg-purple-400/10", trend: 15 },
                 ].map((stat, i) => (
                     <div key={i} className="premium-card bg-[#030712] border-white/5 p-8 flex flex-col justify-between group h-40">
                         <div className="flex justify-between items-start">
@@ -165,13 +239,95 @@ const ManagerDashboard = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1 text-green-500 text-[10px] font-black italic uppercase">
-                                <ArrowUpRight size={14} /> +{stat.trend}%
-                            </div>
-                            <span className="text-[9px] font-black text-white/10 uppercase tracking-widest">W/W Telemetry</span>
+                            {stat.label === "Pending Reviews" ? (
+                                <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest animate-pulse">Action Required</span>
+                            ) : (
+                                <span className="text-[9px] font-black text-white/10 uppercase tracking-widest">Live Telemetry</span>
+                            )}
                         </div>
                     </div>
                 ))}
+            </div>
+
+            {/* Live Feed & Operations */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <Card className="bg-[#030712] border-white/5 rounded-[48px] shadow-3xl overflow-hidden p-0 h-full">
+                        <div className="p-10 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                            <div className="space-y-1">
+                                <h2 className="text-2xl font-black italic tracking-tighter uppercase">Live Operations Feed</h2>
+                                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">REAL-TIME INTERACTION LOG</p>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] font-black text-green-500 uppercase tracking-widest">
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
+                                Online
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="space-y-4">
+                                {recentActivity && recentActivity.length > 0 ? (
+                                    recentActivity.map((act, idx) => (
+                                        <div key={idx} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/[0.04] transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${act.type === 'quiz' ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-purple-500/10 border-purple-500/20 text-purple-500'}`}>
+                                                    {act.type === 'quiz' ? <CheckCircle size={18} /> : <FileText size={18} />}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-xs font-black text-white uppercase tracking-wide">{act.user}</span>
+                                                        <span className="text-[9px] text-white/40 uppercase tracking-widest">via {act.type === 'quiz' ? 'Neural Validation' : 'Direct Protocol'}</span>
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{act.title}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`text-xs font-black uppercase tracking-wide ${act.type === 'quiz' && act.status.includes('Passed') ? 'text-green-500' : 'text-white'}`}>{act.status}</p>
+                                                <p className="text-[9px] text-white/20 font-mono mt-1">{new Date(act.time).toLocaleTimeString()}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-10 text-white/20 text-xs font-black uppercase tracking-widest">No Recent Telemetry</div>
+                                )}
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+
+                <div className="lg:col-span-1">
+                    {/* Intelligence Control Panel (Moved/Resized) */}
+                    <Card className="bg-[#030712] border-white/5 rounded-[48px] shadow-3xl overflow-hidden p-0 flex flex-col h-full">
+                        <div className="p-10 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                            <div className="space-y-1">
+                                <h2 className="text-xl font-black italic tracking-tighter uppercase">Command</h2>
+                                <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">BROADCASTS</p>
+                            </div>
+                            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                                <Zap size={18} />
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-primary/5 border-b border-white/5 flex-1 overflow-y-auto custom-scrollbar">
+                            <div className="space-y-4">
+                                {notices.map((n) => (
+                                    <div key={n.id} className="p-4 rounded-2xl bg-black border border-white/10 group hover:border-primary/30 transition-all">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className="font-black text-[10px] uppercase tracking-widest text-white italic">{n.title}</h4>
+                                            {n.is_alert && <span className="bg-red-500/20 text-red-500 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">CRITICAL</span>}
+                                        </div>
+                                        <p className="text-[9px] text-white/40 line-clamp-2">{n.content}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-white/[0.02]">
+                            <Button className="w-full h-12 rounded-[18px] bg-primary text-white font-black uppercase tracking-[0.2em] text-[9px] shadow-2xl shadow-primary/40 hover:scale-[1.02] transition-transform">
+                                INITIATE BROADCAST
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -279,6 +435,124 @@ const ManagerDashboard = () => {
                 </Card>
             </div>
 
+            {/* Tactical Course Management */}
+            <Card className="bg-[#030712] border-white/5 rounded-[48px] shadow-3xl overflow-hidden p-0 flex flex-col min-h-[500px]">
+                <div className="p-10 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                    <div className="space-y-1">
+                        <h2 className="text-2xl font-black italic tracking-tighter uppercase">Tactical Course Deployment</h2>
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">INSTRUCTIONAL INFRASTRUCTURE</p>
+                    </div>
+                    <Button
+                        onClick={() => setShowCreateModule(!showCreateModule)}
+                        className="bg-primary hover:bg-primary/80 text-white rounded-2xl h-12 px-6 font-black uppercase text-[10px] tracking-widest"
+                    >
+                        {showCreateModule ? 'CANCEL PROTOCOL' : 'INITIALIZE NEW PROTOCOL'}
+                    </Button>
+                </div>
+
+                {showCreateModule && (
+                    <div className="p-10 bg-primary/5 border-b border-white/5 space-y-6 animate-in slide-in-from-top-4">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 block">Protocol Designator (Title)</label>
+                                <input
+                                    className="w-full bg-black border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-primary/50 transition-all"
+                                    placeholder="E.G. ADVANCED FIELD TACTICS"
+                                    value={newModuleTitle}
+                                    onChange={(e) => setNewModuleTitle(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 block">Operational Brief (Description)</label>
+                                <textarea
+                                    className="w-full bg-black border border-white/10 rounded-xl p-4 text-xs font-medium text-white/80 outline-none focus:border-primary/50 transition-all resize-none h-24"
+                                    placeholder="Describe the learning objectives..."
+                                    value={newModuleDesc}
+                                    onChange={(e) => setNewModuleDesc(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <Button onClick={handleCreateModule} className="w-full h-14 bg-white text-black font-black uppercase text-[10px] tracking-widest hover:bg-white/90">
+                            Execute Launch
+                        </Button>
+                    </div>
+                )}
+
+                <div className="p-10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {modules.map(mod => (
+                        <div key={mod.id} className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-primary/30 transition-all group relative">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="p-3 rounded-2xl bg-white/5 text-white/40 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+                                    <Layers size={20} />
+                                </div>
+                                <div className="px-3 py-1 rounded bg-white/5 text-[9px] font-black text-white/30 uppercase tracking-widest">
+                                    ID: {mod.id.toString().padStart(4, '0')}
+                                </div>
+                            </div>
+
+                            <h3 className="text-lg font-black italic uppercase tracking-tight text-white/90 mb-2 truncate">{mod.title}</h3>
+                            <p className="text-xs text-white/40 line-clamp-2 mb-6 h-8">{mod.description}</p>
+
+                            <div className="space-y-3">
+                                <Button
+                                    onClick={() => setActiveModuleForResource(activeModuleForResource === mod.id ? null : mod.id)}
+                                    className={`w-full h-10 justify-start px-4 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all ${activeModuleForResource === mod.id ? 'bg-primary text-white' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
+                                >
+                                    <Video size={14} className="mr-2" />
+                                    {activeModuleForResource === mod.id ? 'Cancel Link' : 'Link Video Resource'}
+                                </Button>
+
+                                {activeModuleForResource === mod.id && (
+                                    <div className="p-4 rounded-xl bg-black border border-white/10 space-y-3 animate-in fade-in zoom-in-95">
+                                        <input
+                                            className="w-full bg-transparent border-b border-white/10 p-2 text-[10px] text-white outline-none focus:border-primary"
+                                            placeholder="Resource Title"
+                                            value={newResourceTitle}
+                                            onChange={(e) => setNewResourceTitle(e.target.value)}
+                                        />
+                                        <input
+                                            className="w-full bg-transparent border-b border-white/10 p-2 text-[10px] text-white outline-none focus:border-primary"
+                                            placeholder="YouTube URL"
+                                            value={newResourceUrl}
+                                            onChange={(e) => setNewResourceUrl(e.target.value)}
+                                        />
+                                        <Button onClick={handleAddResource} size="sm" className="w-full bg-primary/20 text-primary hover:bg-primary hover:text-white text-[9px] font-black uppercase">
+                                            Confirm Link
+                                        </Button>
+                                    </div>
+                                )}
+
+                                <Button
+                                    onClick={() => setActiveModuleForAssign(activeModuleForAssign === mod.id ? null : mod.id)}
+                                    className={`w-full h-10 justify-start px-4 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all ${activeModuleForAssign === mod.id ? 'bg-blue-500 text-white' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}
+                                >
+                                    <Send size={14} className="mr-2" />
+                                    {activeModuleForAssign === mod.id ? 'Cancel Assign' : 'Assign to Unit'}
+                                </Button>
+
+                                {activeModuleForAssign === mod.id && (
+                                    <div className="p-4 rounded-xl bg-black border border-white/10 space-y-3 animate-in fade-in zoom-in-95">
+                                        <select
+                                            className="w-full bg-transparent border-b border-white/10 p-2 text-[10px] text-white outline-none focus:border-blue-500 [&>option]:bg-black"
+                                            value={selectedLearnerForAssign}
+                                            onChange={(e) => setSelectedLearnerForAssign(e.target.value)}
+                                        >
+                                            <option value="">SELECT UNIT</option>
+                                            {learners.map(l => (
+                                                <option key={l.id} value={l.id}>{l.username.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                        <Button onClick={handleAssignModule} size="sm" className="w-full bg-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white text-[9px] font-black uppercase">
+                                            Confirm Directive
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Card>
+
             {/* Knowledge Node Diagnostics */}
             <Card className="bg-[#030712] border-white/5 rounded-[48px] shadow-3xl overflow-hidden p-0">
                 <div className="p-10 border-b border-white/5 bg-white/[0.02]">
@@ -336,5 +610,3 @@ const ManagerDashboard = () => {
 };
 
 export default ManagerDashboard;
-
-

@@ -33,3 +33,8 @@ class ModuleProgressSerializer(serializers.ModelSerializer):
         resources = obj.module.resources.all()
         progress = ResourceProgress.objects.filter(user=obj.user, resource__in=resources)
         return ResourceProgressSerializer(progress, many=True).data
+
+class ResourceCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Resource
+        fields = ['id', 'title', 'description', 'type', 'url', 'order']

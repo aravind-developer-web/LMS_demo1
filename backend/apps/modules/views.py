@@ -1,15 +1,18 @@
 from rest_framework import generics, permissions
 from .models import Module, Resource
-from .serializers import ModuleSerializer, ResourceSerializer, ModuleProgressSerializer
+from .serializers import ModuleSerializer, ResourceSerializer, ModuleProgressSerializer, ResourceCreateSerializer
 
 class ModuleListCreateView(generics.ListCreateAPIView):
-    queryset = Module.objects.all()
+    queryset = Module.objects.all().order_by('-created_at')
     serializer_class = ModuleSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        # Only admin should create. Check user role if needed.
-        serializer.save()
+        # Managers and Admins can create
+        if self.request.user.role in ['manager', 'admin']:
+            serializer.save()
+        else:
+            raise permissions.PermissionDenied("Only Managers and Admins can create modules.")
 
 class ModuleDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Module.objects.all()
@@ -124,3 +127,34 @@ class UpdateVideoProgressView(APIView):
         mod_progress.save() # auto_now updates timestamp
 
         return Response({"status": "progress_updated"})
+
+class ResourceCreateView(generics.CreateAPIView):
+    serializer_class = ResourceCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        module_id = self.kwargs['module_id']
+        module = generics.get_object_or_404(Module, pk=module_id)
+        if self.request.user.role not in ['manager', 'admin']:
+             raise permissions.PermissionDenied("Only Managers and Admins can add resources.")
+        serializer.save(module=module)
+
+class AssignModuleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, module_id):
+        if request.user.role not in ['manager', 'admin']:
+             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        module = generics.get_object_or_404(Module, pk=module_id)
+        learner_id = request.data.get('learner_id')
+        
+        # Check if learner exists
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        learner = generics.get_object_or_404(User, pk=learner_id, role='learner')
+
+        # Create or get progress (Assign)
+        ModuleProgress.objects.get_or_create(user=learner, module=module)
+        
+        return Response({"status": "assigned", "module": module.title, "learner": learner.username})

@@ -11,4 +11,5 @@ urlpatterns = [
     # path('api/progress/', include('apps.progress.urls')),  # Removed: Progress now in modules
     path('api/analytics/', include('apps.analytics.urls')),
     path('api/management/', include('apps.management.urls')),
+    path('api/', include('apps.discussions.urls')),
 ]
