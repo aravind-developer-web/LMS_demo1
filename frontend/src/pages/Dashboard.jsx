@@ -8,19 +8,32 @@ import { PlayCircle, CheckCircle, Clock, BookOpen, GraduationCap, Trophy, ArrowR
 
 const Dashboard = () => {
     const { user } = useAuth();
-    const [assignments, setAssignments] = useState([]);
+    const [modules, setModules] = useState([]);
+    const [progress, setProgress] = useState({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchAssignments();
+        fetchModulesAndProgress();
     }, []);
 
-    const fetchAssignments = async () => {
+    const fetchModulesAndProgress = async () => {
         try {
-            const response = await api.get('/assignments/my/');
-            setAssignments(response.data);
+            const [modulesRes, progressRes] = await Promise.all([
+                api.get('/modules/'),
+                api.get('/modules/my-progress/').catch(() => ({ data: [] }))
+            ]);
+            setModules(modulesRes.data);
+
+            // Convert progress array to lookup object
+            const progressMap = {};
+            if (progressRes.data && Array.isArray(progressRes.data)) {
+                progressRes.data.forEach(p => {
+                    progressMap[p.module] = p;
+                });
+            }
+            setProgress(progressMap);
         } catch (error) {
-            console.error("Failed to fetch assignments", error);
+            console.error("Failed to fetch modules", error);
         } finally {
             setLoading(false);
         }
@@ -35,9 +48,10 @@ const Dashboard = () => {
         }
     };
 
-    const completedCount = assignments.filter(a => a.status === 'completed').length;
-    const progressPercentage = assignments.length > 0 ? (completedCount / assignments.length) * 100 : 0;
-    const lastActive = assignments.find(a => a.status === 'in_progress') || assignments[0];
+    const completedCount = Object.values(progress).filter(p => p.progress_percentage >= 100).length;
+    const progressPercentage = modules.length > 0 ? (completedCount / modules.length) * 100 : 0;
+    const inProgressModules = Object.values(progress).filter(p => p.progress_percentage > 0 && p.progress_percentage < 100);
+    const lastActive = modules.find(m => progress[m.id]?.progress_percentage > 0 && progress[m.id]?.progress_percentage < 100) || modules[0];
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [personalIntel, setPersonalIntel] = useState(() => {
@@ -111,11 +125,11 @@ const Dashboard = () => {
                             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] backdrop-blur-md">
                                 <Monitor size={14} className="text-primary" /> Active Knowledge Session
                             </div>
-                            <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none italic uppercase">{lastActive.module_title}</h2>
+                            <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none italic uppercase">{lastActive?.title || "Begin Your Journey"}</h2>
                             <p className="max-w-2xl text-slate-400 text-lg font-medium leading-relaxed">
                                 Accelerate your progress on this intellectual track. High-precision engagement is being tracked for managerial review.
                             </p>
-                            <Link to={`/modules/${lastActive.module}`}>
+                            <Link to={`/modules/${lastActive?.id}`}>
                                 <Button size="lg" className="h-16 px-12 mt-6 rounded-[24px] bg-white text-black hover:bg-primary hover:text-white font-black shadow-2xl transition-all duration-500 group/btn uppercase tracking-widest">
                                     Continue Stream <ArrowRight size={20} className="ml-3 group-hover/btn:translate-x-2 transition-transform" />
                                 </Button>
@@ -155,45 +169,69 @@ const Dashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 gap-6">
-                        {assignments.map((assignment) => (
-                            <Link key={assignment.id} to={`/modules/${assignment.module}`}>
-                                <Card className="group premium-card bg-[#030712] border-white/5 hover:border-primary/50 transition-all duration-700 overflow-hidden p-0">
-                                    <div className="flex h-32 md:h-28">
-                                        <div className={`w-2 transition-all duration-700 ${assignment.status === 'completed' ? 'bg-green-500' : assignment.status === 'in_progress' ? 'bg-primary' : 'bg-slate-800'} group-hover:w-4`} />
-                                        <div className="flex-1 p-6 md:px-10 flex flex-col md:flex-row justify-between items-center gap-6">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-4 mb-2">
-                                                    <span className={`px-2.5 py-1 rounded bg-white/5 text-[8px] font-black uppercase tracking-widest border border-white/5 ${getStatusStyles(assignment.status)}`}>
-                                                        {assignment.status.replace('_', ' ')}
-                                                    </span>
-                                                    {assignment.has_quiz && (
-                                                        <span className="px-2.5 py-1 rounded bg-yellow-500/10 text-yellow-500 text-[8px] font-black uppercase tracking-widest border border-yellow-500/20">
-                                                            Quiz Available
-                                                        </span>
-                                                    )}
-                                                    {assignment.has_assignment && (
-                                                        <span className="px-2.5 py-1 rounded bg-purple-500/10 text-purple-500 text-[8px] font-black uppercase tracking-widest border border-purple-500/20">
-                                                            Research Node
-                                                        </span>
-                                                    )}
-                                                    <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">NODE::0X{assignment.id}7F</span>
+                        {modules.map((module) => {
+                            const moduleProgress = progress[module.id];
+                            const progressPct = moduleProgress?.progress_percentage || 0;
+                            const status = progressPct >= 100 ? 'completed' : progressPct > 0 ? 'in_progress' : 'not_started';
+
+                            // Extract YouTube thumbnail if available
+                            const firstVideoResource = module.resources?.find(r => r.type === 'video');
+                            const videoId = firstVideoResource?.url?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?\&]v=)|youtu\.be\/)([^"\&?\/ ]{11})/)?.[1];
+                            const thumbnail = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
+
+                            return (
+                                <Link key={module.id} to={`/modules/${module.id}`}>
+                                    <Card className="group premium-card bg-[#030712] border-white/5 hover:border-primary/50 transition-all duration-700 overflow-hidden p-0">
+                                        <div className="flex h-32 md:h-28">
+                                            {thumbnail && (
+                                                <div className="w-48 h-full relative overflow-hidden flex-shrink-0 hidden md:block">
+                                                    <img src={thumbnail} alt={module.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                                                    <PlayCircle className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/80 group-hover:scale-125 transition-transform" size={32} />
                                                 </div>
-                                                <h3 className="text-2xl font-black tracking-tight uppercase truncate italic group-hover:text-primary transition-colors">{assignment.module_title}</h3>
-                                            </div>
-                                            <div className="flex items-center gap-8">
-                                                <div className="hidden md:flex flex-col items-end">
-                                                    <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Target Sync</span>
-                                                    <span className="text-xs font-black text-white/60">{assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'INDETERMINATE'}</span>
+                                            )}
+                                            <div className={`w-2 transition-all duration-700 ${status === 'completed' ? 'bg-green-500' : status === 'in_progress' ? 'bg-primary' : 'bg-slate-800'} group-hover:w-4`} />
+                                            <div className="flex-1 p-6 md:px-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-4 mb-2 flex-wrap">
+                                                        <span className={`px-2.5 py-1 rounded bg-white/5 text-[8px] font-black uppercase tracking-widest border border-white/5 ${getStatusStyles(status)}`}>
+                                                            {status.replace('_', ' ')}
+                                                        </span>
+                                                        <span className="px-2.5 py-1 rounded bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase tracking-widest border border-blue-500/20">
+                                                            {module.resources?.length || 0} Resources
+                                                        </span>
+                                                        {module.difficulty && (
+                                                            <span className="px-2.5 py-1 rounded bg-purple-500/10 text-purple-500 text-[8px] font-black uppercase tracking-widest border border-purple-500/20">
+                                                                {module.difficulty}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">NODE::0X{module.id}7F</span>
+                                                    </div>
+                                                    <h3 className="text-2xl font-black tracking-tight uppercase truncate italic group-hover:text-primary transition-colors">{module.title}</h3>
+                                                    {progressPct > 0 && (
+                                                        <div className="mt-2 flex items-center gap-2">
+                                                            <div className="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-gradient-to-r from-primary to-blue-400 transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                                                            </div>
+                                                            <span className="text-[9px] font-black text-primary">{Math.round(progressPct)}%</span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-white transition-all duration-500">
-                                                    <ArrowRight size={20} />
+                                                <div className="flex items-center gap-8">
+                                                    <div className="hidden md:flex flex-col items-end">
+                                                        <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Duration</span>
+                                                        <span className="text-xs font-black text-white/60">{module.duration ? `${module.duration} min` : 'Variable'}</span>
+                                                    </div>
+                                                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-white transition-all duration-500">
+                                                        <ArrowRight size={20} />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </Card>
-                            </Link>
-                        ))}
+                                    </Card>
+                                </Link>
+                            );
+                        })}
                     </div>
 
                     {/* Personal Vault Overlay */}
