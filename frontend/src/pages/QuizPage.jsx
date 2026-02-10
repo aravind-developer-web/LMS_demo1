@@ -98,7 +98,7 @@ const QuizPage = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto py-12 px-4 space-y-12 animate-in">
+        <div className="max-w-4xl mx-auto py-12 px-4 space-y-12 animate-in pb-32">
             <div className="flex flex-col md:flex-row justify-between items-end gap-6">
                 <div>
                     <Button variant="ghost" onClick={() => navigate(`/modules/${id}`)} className="p-0 text-muted-foreground hover:text-primary font-black uppercase tracking-widest text-[10px] mb-4">

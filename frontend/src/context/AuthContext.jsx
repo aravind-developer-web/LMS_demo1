@@ -56,6 +56,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        sessionStorage.clear(); // Clear all session data
         setUser(null);
         window.location.href = '/';
     };

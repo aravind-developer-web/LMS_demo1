@@ -22,7 +22,7 @@ const LandingPage = () => {
                         <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20">
                             <BookOpen size={22} />
                         </div>
-                        <span className="bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">LMS OS</span>
+                        <span className="bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">LMS</span>
                     </div>
                     <nav className="hidden lg:flex items-center gap-10 text-sm font-bold uppercase tracking-widest text-slate-400">
                         <a href="#ecosystem" className="hover:text-primary transition-colors">Ecosystem</a>
@@ -63,17 +63,17 @@ const LandingPage = () => {
                     <Sparkles size={14} className="animate-spin-slow" />
                     Neural Progress V3.5 Active
                 </div>
-                <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-10 leading-[1.05] animate-in">
-                    Restoring <br />
-                    <span className="bg-gradient-to-b from-blue-400 to-blue-600 bg-clip-text text-transparent italic">Intellectual Flow</span>
+                <h1 className="text-4xl sm:text-6xl md:text-8xl font-black tracking-tighter mb-6 md:mb-10 leading-[1.05] animate-in">
+                    Learning Management <br />
+                    <span className="bg-gradient-to-b from-blue-400 to-blue-600 bg-clip-text text-transparent italic">System</span>
                 </h1>
-                <p className="text-xl md:text-2xl text-slate-400 max-w-3xl mx-auto mb-16 font-medium leading-relaxed animate-in" style={{ animationDelay: '0.1s' }}>
+                <p className="text-lg md:text-2xl text-slate-400 max-w-3xl mx-auto mb-10 md:mb-16 font-medium leading-relaxed animate-in" style={{ animationDelay: '0.1s' }}>
                     The unified intelligence platform where Learner growth meets Managerial precision.
                     Reconnecting the missing links between training and performance.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-32 animate-in" style={{ animationDelay: '0.2s' }}>
-                    <Link to="/register">
-                        <Button size="lg" className="h-16 px-12 text-lg font-black rounded-2xl bg-white text-black hover:bg-slate-200 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-white/10">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 mb-24 md:mb-32 animate-in" style={{ animationDelay: '0.2s' }}>
+                    <Link to="/register" className="w-full sm:w-auto">
+                        <Button size="lg" className="w-full sm:w-auto h-14 md:h-16 px-8 md:px-12 text-base md:text-lg font-black rounded-2xl bg-white text-black hover:bg-slate-200 transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-white/10">
                             Establish Connection <ArrowRight className="ml-3 h-5 w-5" />
                         </Button>
                     </Link>
@@ -258,7 +258,7 @@ const LandingPage = () => {
                                 <div className="w-10 h-10 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-white">
                                     <BookOpen size={20} />
                                 </div>
-                                <span>LMS OS</span>
+                                <span>LMS</span>
                             </div>
                             <p className="text-slate-500 font-medium leading-relaxed">
                                 Restoration of intellectual flow through high-performance engineering.

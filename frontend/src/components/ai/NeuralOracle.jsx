@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, X, MessageSquare, Sparkles, User, Brain } from 'lucide-react';
 import { Button } from '../ui/Button';
+import api from '../../services/api';
 
 const KNOWLEDGE_BASE = [
     { keywords: ['hello', 'hi', 'hey'], response: "Greetings, Intelligence Unit. I am the Neural Oracle. How can I accelerate your learning trajectory today?" },
@@ -34,19 +35,16 @@ const NeuralOracle = () => {
         setInput('');
 
         // Simulate AI Thinking
-        setTimeout(() => {
-            const query = input.toLowerCase();
-            let responseText = "My cognitive array doesn't have a direct match for that query, but I recommend continuing through your assigned Intelligence Tracks to unlock more data.";
-
-            for (const item of KNOWLEDGE_BASE) {
-                if (item.keywords.some(k => query.includes(k))) {
-                    responseText = item.response;
-                    break;
-                }
-            }
-
-            setMessages(prev => [...prev, { role: 'bot', text: responseText }]);
-        }, 800);
+        // Call AI Backend
+        api.post('/ai/chat/', {
+            message: input,
+            history: messages.map(m => ({ role: m.role === 'bot' ? 'assistant' : 'user', text: m.text }))
+        }).then(res => {
+            setMessages(prev => [...prev, { role: 'bot', text: res.data.response }]);
+        }).catch(err => {
+            console.error(err);
+            setMessages(prev => [...prev, { role: 'bot', text: "Neural Link Disrupted. I cannot reach the cognitive core at this moment." }]);
+        });
     };
 
     return (

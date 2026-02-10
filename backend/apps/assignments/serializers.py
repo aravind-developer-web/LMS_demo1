@@ -5,7 +5,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Submission
         fields = ['id', 'assignment', 'content', 'submitted_at', 'status', 'feedback', 'grade']
-        read_only_fields = ['submitted_at', 'status', 'feedback', 'grade']
+        read_only_fields = ['submitted_at', 'status', 'feedback', 'grade', 'assignment']
 
 class AssignmentSerializer(serializers.ModelSerializer):
     module_title = serializers.ReadOnlyField(source='module.title')

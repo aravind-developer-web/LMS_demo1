@@ -20,9 +20,12 @@ const QAPanel = ({ moduleId }) => {
         try {
             setLoading(true);
             const response = await api.get(`/discussions/?module_id=${moduleId}`);
-            setDiscussions(response.data);
+            // Handle pagination (results array) or direct array
+            const data = response.data.results ? response.data.results : response.data;
+            setDiscussions(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Failed to fetch discussions", error);
+            setDiscussions([]);
         } finally {
             setLoading(false);
         }

@@ -31,3 +31,14 @@ class LearnerMessage(models.Model):
 
     def __str__(self):
         return f"Msg from {self.sender.username} to {self.receiver.username}"
+
+class Broadcast(models.Model):
+    manager = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='broadcasts', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    url = models.URLField(max_length=500)
+    is_video = models.BooleanField(default=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title

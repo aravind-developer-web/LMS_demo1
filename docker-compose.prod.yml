@@ -53,7 +53,7 @@ services:
       dockerfile: Dockerfile
     container_name: lms_frontend_prod
     volumes:
-      - frontend_build:/app/dist
+      - frontend_build:/usr/share/nginx/html
     networks:
       - lms_network
     restart: unless-stopped

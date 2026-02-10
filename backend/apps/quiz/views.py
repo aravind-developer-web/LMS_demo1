@@ -51,39 +51,11 @@ class QuizSubmitView(APIView):
             passed=passed
         )
 
-        # Update module progress if passed
+        # Principal Progress Sync
         if passed:
-            from apps.modules.models import Module, ModuleProgress, ResourceProgress
-            module = quiz.module
-            total_resources = module.resources.count()
-            completed_resources = ResourceProgress.objects.filter(
-                user=request.user, 
-                resource__module=module, 
-                completed=True
-            ).count()
-            
-            resources_done = total_resources > 0 and completed_resources >= total_resources
-            
-            assignment_requirements_met = True
-            if module.has_assignment:
-                from apps.assignments.models import Assignment, Submission
-                assignment = Assignment.objects.filter(user=request.user, module=module).first()
-                if assignment:
-                    assignment_requirements_met = Submission.objects.filter(assignment=assignment).exists()
-                else:
-                    assignment_requirements_met = False
-            
-            if resources_done and assignment_requirements_met:
-                from django.utils import timezone
-                mod_progress, _ = ModuleProgress.objects.get_or_create(user=request.user, module=module)
-                mod_progress.status = 'completed'
-                mod_progress.completed_at = timezone.now()
-                mod_progress.save()
-                
-                from apps.assignments.models import Assignment
-                Assignment.objects.filter(user=request.user, module=module).update(
-                    status='completed', completed_at=timezone.now()
-                )
+            from apps.modules.models import ModuleProgress
+            mod_progress, _ = ModuleProgress.objects.get_or_create(user=request.user, module_id=module_id)
+            mod_progress.check_completion()
 
         # Update module progress potentially here or via signals
         # For now just return result

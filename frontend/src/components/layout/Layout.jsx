@@ -13,7 +13,10 @@ import {
     Settings,
     ChevronRight,
     Search,
-    Sparkles
+    Sparkles,
+    FileText,
+    ClipboardList,
+    BrainCircuit
 } from 'lucide-react';
 import NeuralOracle from '../ai/NeuralOracle';
 
@@ -50,84 +53,62 @@ const Layout = () => {
 
     const isManager = user?.role === 'manager' || user?.role === 'admin';
 
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
     return (
         <div className="min-h-screen bg-background flex text-foreground overflow-hidden">
-            {/* Sidebar */}
+            {/* Desktop Sidebar */}
             <aside
                 className={`hidden md:flex flex-col border-r border-border bg-card transition-all duration-300 relative z-20 ${collapsed ? 'w-20' : 'w-72'
                     }`}
             >
+                {/* ... (Existing Sidebar Content - Kept Same) ... */}
                 <div className="p-6 flex items-center justify-between">
-                    {!collapsed && (
-                        <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-                            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
-                                <BookOpen size={18} />
-                            </div>
-                            <span>LMS Enterprise</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
+                        {!collapsed && (
+                            <>
+                                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
+                                    <BookOpen size={18} />
+                                </div>
+                                <span>LMS Enterprise</span>
+                            </>
+                        )}
+                    </div>
                     <button
                         onClick={() => setCollapsed(!collapsed)}
                         className="p-2 hover:bg-secondary rounded-lg text-muted-foreground transition-colors mx-auto"
                     >
-                        {collapsed ? <Menu size={20} /> : <X size={20} />}
+                        {collapsed ? <ChevronRight size={20} /> : <Menu size={20} />}
                     </button>
                 </div>
 
                 <div className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
+                    {/* Reusing Links Logic */}
                     {isManager ? (
                         <div className="py-4 space-y-2">
                             {!collapsed && <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Command Center</p>}
-                            <SidebarLink
-                                to="/dashboard/learning"
-                                icon={LayoutDashboard}
-                                label="Personal Node"
-                                active={location.pathname === '/dashboard/learning' || (location.pathname === '/dashboard' && user.role !== 'manager')}
-                                collapsed={collapsed}
-                            />
-                            <SidebarLink
-                                to="/dashboard/analytics"
-                                icon={BarChart3}
-                                label="Team Analytics"
-                                active={location.pathname === '/dashboard/analytics' || (location.pathname === '/dashboard' && user.role === 'manager')}
-                                collapsed={collapsed}
-                            />
+                            <SidebarLink to="/dashboard/intelligence" icon={BrainCircuit} label="Neural Intelligence" active={location.pathname === '/dashboard/intelligence'} collapsed={collapsed} />
+                            <SidebarLink to="/dashboard/analytics" icon={BarChart3} label="Team Analytics" active={location.pathname === '/dashboard/analytics'} collapsed={collapsed} />
+                            <SidebarLink to="/dashboard/learning" icon={LayoutDashboard} label="Personal Node" active={location.pathname === '/dashboard/learning'} collapsed={collapsed} />
                             <div className="pt-4">
                                 {!collapsed && <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Vault</p>}
-                                <SidebarLink
-                                    to="/my-notes"
-                                    icon={MessageSquare}
-                                    label="Neural Notes"
-                                    active={location.pathname === '/my-notes'}
-                                    collapsed={collapsed}
-                                />
+                                <SidebarLink to="/my-notes" icon={MessageSquare} label="Neural Notes" active={location.pathname === '/my-notes'} collapsed={collapsed} />
                             </div>
                         </div>
                     ) : (
                         <div className="py-4 space-y-2">
                             {!collapsed && <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Intelligence</p>}
-                            <SidebarLink
-                                to="/dashboard"
-                                icon={LayoutDashboard}
-                                label="Dashboard"
-                                active={location.pathname === '/dashboard'}
-                                collapsed={collapsed}
-                            />
-                            <SidebarLink
-                                to="/my-notes"
-                                icon={MessageSquare}
-                                label="Personal Notes"
-                                active={location.pathname === '/my-notes'}
-                                collapsed={collapsed}
-                            />
+                            <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} collapsed={collapsed} />
+                            <SidebarLink to="/my-notes" icon={MessageSquare} label="Personal Notes" active={location.pathname === '/my-notes'} collapsed={collapsed} />
+                            <SidebarLink to="/quizzes" icon={FileText} label="Quizzes" active={location.pathname === '/quizzes'} collapsed={collapsed} />
+                            <SidebarLink to="/assignments" icon={ClipboardList} label="Assignments" active={location.pathname === '/assignments'} collapsed={collapsed} />
                         </div>
                     )}
                 </div>
 
-                {/* User Section */}
                 <div className="p-4 border-t border-border mt-auto bg-muted/20">
-                    <div className={`flex items-center gap-3 p-3 rounded-xl bg-card border border-border ${collapsed ? 'justify-center' : ''}`}>
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                    <Link to="/profile" className={`flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:bg-white/5 transition-colors cursor-pointer group ${collapsed ? 'justify-center' : ''}`}>
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold group-hover:bg-primary group-hover:text-white transition-colors">
                             <User size={20} />
                         </div>
                         {!collapsed && (
@@ -137,35 +118,85 @@ const Layout = () => {
                             </div>
                         )}
                         {!collapsed && (
-                            <button onClick={logout} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+                            <button onClick={(e) => { e.preventDefault(); logout(); }} className="p-2 text-muted-foreground hover:text-destructive transition-colors ml-auto">
                                 <LogOut size={18} />
                             </button>
                         )}
-                    </div>
-                    {collapsed && (
-                        <button onClick={logout} className="w-full mt-2 p-3 text-muted-foreground hover:text-destructive transition-colors flex justify-center">
-                            <LogOut size={18} />
-                        </button>
-                    )}
+                    </Link>
                 </div>
             </aside>
 
+            {/* Mobile Sidebar Overlay */}
+            {mobileMenuOpen && (
+                <div className="fixed inset-0 z-50 md:hidden flex">
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>
+                    <div className="relative bg-card w-4/5 max-w-xs h-full p-6 flex flex-col shadow-2xl animate-in slide-in-from-left duration-300">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
+                                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
+                                    <BookOpen size={18} />
+                                </div>
+                                <span>LMS Mobile</span>
+                            </div>
+                            <button onClick={() => setMobileMenuOpen(false)} className="p-2 bg-secondary rounded-lg">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto space-y-2">
+                            {/* Mobile Links (Same as Desktop but always expanded) */}
+                            {isManager ? (
+                                <>
+                                    <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Command Center</p>
+                                    <SidebarLink to="/dashboard/learning" icon={LayoutDashboard} label="Personal Node" active={location.pathname === '/dashboard/learning'} collapsed={false} />
+                                    <SidebarLink to="/dashboard/analytics" icon={BarChart3} label="Team Analytics" active={location.pathname === '/dashboard/analytics'} collapsed={false} />
+                                    <SidebarLink to="/my-notes" icon={MessageSquare} label="Neural Notes" active={location.pathname === '/my-notes'} collapsed={false} />
+                                </>
+                            ) : (
+                                <>
+                                    <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Intelligence</p>
+                                    <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/dashboard'} collapsed={false} />
+                                    <SidebarLink to="/my-notes" icon={MessageSquare} label="Personal Notes" active={location.pathname === '/my-notes'} collapsed={false} />
+                                    <SidebarLink to="/quizzes" icon={FileText} label="Quizzes" active={location.pathname === '/quizzes'} collapsed={false} />
+                                    <SidebarLink to="/assignments" icon={ClipboardList} label="Assignments" active={location.pathname === '/assignments'} collapsed={false} />
+                                </>
+                            )}
+                        </div>
+
+                        <div className="mt-auto border-t border-border pt-4">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                    <User size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold">{user.username}</p>
+                                    <p className="text-xs text-muted-foreground uppercase">{user.role}</p>
+                                </div>
+                            </div>
+                            <button onClick={logout} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-destructive/10 text-destructive font-bold hover:bg-destructive hover:text-white transition-colors">
+                                <LogOut size={18} /> Sign Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col h-screen overflow-hidden">
+            <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
                 {/* Mobile Header */}
-                <header className="md:hidden border-b border-border p-4 flex justify-between items-center bg-card">
+                <header className="md:hidden border-b border-border p-4 flex justify-between items-center bg-card sticky top-0 z-10">
                     <div className="flex items-center gap-2 font-bold">
                         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
                             <BookOpen size={18} />
                         </div>
-                        <span>LMS</span>
+                        <span>LMS Enterprise</span>
                     </div>
-                    <button className="p-2 bg-secondary rounded-lg">
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 bg-secondary rounded-lg active:scale-95 transition-transform">
                         <Menu size={20} />
                     </button>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 animate-in">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 animate-in pb-24 md:pb-8" id="main-content">
                     <div className="max-w-7xl mx-auto">
                         <Outlet />
                     </div>

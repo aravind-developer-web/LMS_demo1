@@ -5,19 +5,44 @@ from .serializers import ModuleSerializer, ResourceSerializer, ModuleProgressSer
 class ModuleListCreateView(generics.ListCreateAPIView):
     queryset = Module.objects.all().order_by('-created_at')
     serializer_class = ModuleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Open learning catalog
 
     def perform_create(self, serializer):
         # Managers and Admins can create
-        if self.request.user.role in ['manager', 'admin']:
+        if self.request.user.is_authenticated and self.request.user.role in ['manager', 'admin']:
             serializer.save()
         else:
             raise permissions.PermissionDenied("Only Managers and Admins can create modules.")
 
+
 class ModuleDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Module.objects.all()
     serializer_class = ModuleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]  # Allow authenticated access
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Allow READ access to all modules (open learning).
+        Add assignment status to response for UI messaging.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        
+        # Check assignment status for authenticated learners (for UI, not blocking)
+        if request.user.is_authenticated and hasattr(request.user, 'role') and request.user.role == 'learner':
+            from apps.assignments.models import Assignment
+            has_assignment = Assignment.objects.filter(user=request.user, module=instance).exists()
+            
+            # Add assignment info to response (UI will use this)
+            data['is_assigned'] = has_assignment
+            data['assignment_message'] = None if has_assignment else "This module is not assigned — progress will not be tracked"
+        else:
+            data['is_assigned'] = True  # Admins/managers always have full access
+            data['assignment_message'] = None
+        
+        return Response(data)
+
 
 from rest_framework import status
 from rest_framework.views import APIView
@@ -35,98 +60,81 @@ class ModuleProgressView(generics.RetrieveAPIView):
         progress, created = ModuleProgress.objects.get_or_create(user=self.request.user, module=module)
         return progress
 
+from apps.analytics.models import LearningSession
+from django.db.models import F
+
 class UpdateResourceProgressView(APIView):
+    """
+    Unified Progress Endpoint.
+    Handles: 
+    - Pulse tracking (F() watch time + LearningSession focus time)
+    - Manual/Auto completion
+    - Completion triggers mapping back to ModuleProgress
+    """
     permission_classes = [permissions.IsAuthenticated]
 
+    def _get_or_create_session(self, user):
+        one_hour_ago = timezone.now() - timezone.timedelta(hours=1)
+        session = LearningSession.objects.filter(
+            user=user, 
+            start_time__gte=one_hour_ago
+        ).order_by('-start_time').first()
+        
+        if not session:
+            session = LearningSession.objects.create(user=user)
+        return session
+
     def post(self, request, module_id, resource_id):
-        # 1. Mark resource as completed
         resource = generics.get_object_or_404(Resource, pk=resource_id, module_id=module_id)
         res_progress, created = ResourceProgress.objects.get_or_create(user=request.user, resource=resource)
+        mod_progress, _ = ModuleProgress.objects.get_or_create(user=request.user, module_id=module_id)
+
+        # 1. Update State (Absolute vs Incremental)
+        pulse_delta = request.data.get('duration_delta')
+        absolute_watch_time = request.data.get('watch_time')
+        last_position = request.data.get('last_position')
+        force_complete = request.data.get('completed', False)
+
+        if pulse_delta:
+            # Atomic focus increment
+            res_progress.watch_time_seconds = F('watch_time_seconds') + int(pulse_delta)
+            
+            # Update Learning Session
+            session = self._get_or_create_session(request.user)
+            session.focus_duration_seconds = F('focus_duration_seconds') + int(pulse_delta)
+            session.end_time = timezone.now()
+            session.save()
+
+        if absolute_watch_time is not None:
+            res_progress.watch_time_seconds = int(absolute_watch_time)
         
-        if not res_progress.completed:
+        if last_position is not None:
+            res_progress.last_position_seconds = int(last_position)
+
+        # 2. Completion Logic
+        if force_complete and not res_progress.completed:
             res_progress.completed = True
             res_progress.completed_at = timezone.now()
-            res_progress.save()
-
-        # 2. Check if Module is completed
-        # logical check: if all resources in module are completed -> mark module complete
-        module = generics.get_object_or_404(Module, pk=module_id)
-        total_resources = module.resources.count()
-        completed_resources = ResourceProgress.objects.filter(
-            user=request.user, 
-            resource__module=module, 
-            completed=True
-        ).count()
-
-        mod_progress, _ = ModuleProgress.objects.get_or_create(user=request.user, module=module)
         
+        res_progress.save()
+
+        # Update last_accessed on module
         if mod_progress.status == 'not_started':
             mod_progress.status = 'in_progress'
-            mod_progress.save()
-        else:
-            mod_progress.save() # Update last_accessed
+        mod_progress.save()
 
-        # ONLY COMPLETE IF:
-        # 1. All resources are done
-        # 2. Module has NO quiz OR quiz is already passed
-        # 3. Module has NO assignment OR assignment is already submitted
-        
-        resources_done = total_resources > 0 and completed_resources >= total_resources
-        
-        quiz_requirements_met = True
-        if module.has_quiz:
-            from apps.quiz.models import QuizAttempt, Quiz
-            quiz = Quiz.objects.filter(module=module).first()
-            if quiz:
-                quiz_requirements_met = QuizAttempt.objects.filter(user=request.user, quiz=quiz, passed=True).exists()
-            else:
-                quiz_requirements_met = False
+        # 3. Principled Completion Check
+        is_module_done = mod_progress.check_completion()
 
-        assignment_requirements_met = True
-        if module.has_assignment:
-            from apps.assignments.models import Assignment, Submission
-            assignment = Assignment.objects.filter(user=request.user, module=module).first()
-            if assignment:
-                assignment_requirements_met = Submission.objects.filter(assignment=assignment).exists()
-            else:
-                assignment_requirements_met = False
+        return Response({
+            "status": "synchronized", 
+            "resource_completed": res_progress.completed,
+            "module_status": mod_progress.status
+        })
 
-        if resources_done and quiz_requirements_met and assignment_requirements_met:
-            mod_progress.status = 'completed'
-            mod_progress.completed_at = timezone.now()
-            mod_progress.save()
-            
-            # Status update for the assignment enrollment record too
-            from apps.assignments.models import Assignment
-            Assignment.objects.filter(user=request.user, module=module).update(
-                status='completed', completed_at=timezone.now()
-            )
-
-        return Response({"status": "updated", "module_status": mod_progress.status})
-
-class UpdateVideoProgressView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, module_id, resource_id):
-        # Update watch time and position
-        resource = generics.get_object_or_404(Resource, pk=resource_id, module_id=module_id)
-        progress, created = ResourceProgress.objects.get_or_create(user=request.user, resource=resource)
-        
-        watch_time = request.data.get('watch_time')
-        last_position = request.data.get('last_position')
-        
-        if watch_time is not None:
-            progress.watch_time_seconds = watch_time
-        if last_position is not None:
-            progress.last_position_seconds = last_position
-            
-        progress.save()
-
-        # Update ModuleProgress last_accessed
-        mod_progress, _ = ModuleProgress.objects.get_or_create(user=request.user, module_id=module_id)
-        mod_progress.save() # auto_now updates timestamp
-
-        return Response({"status": "progress_updated"})
+class UpdateVideoProgressView(UpdateResourceProgressView):
+    """Alias for backward compatibility with existing frontend heartbeat if needed."""
+    pass
 
 class ResourceCreateView(generics.CreateAPIView):
     serializer_class = ResourceCreateSerializer

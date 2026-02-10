@@ -18,6 +18,9 @@ class Assignment(models.Model):
     assigned_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        unique_together = ('user', 'module')
+
     def __str__(self):
         return f"{self.user.username} - {self.module.title}"
 

@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { CheckCircle, BookOpen, FileText, Video, Lock, ExternalLink, ArrowLeft, ChevronRight, Zap, PlayCircle, Maximize2, Monitor, Layout, Columns, ArrowRight } from 'lucide-react';
 import NotesPanel from '../components/module/NotesPanel';
 import QAPanel from '../components/module/QAPanel';
+import { getEmbedUrl } from '../utils/videoUtils';
+import Telemetry from '../utils/telemetry';
 
 const ModulePlayer = () => {
     const { id } = useParams();
@@ -18,80 +20,138 @@ const ModulePlayer = () => {
     const [watchTime, setWatchTime] = useState(0);
     const [isCinemaMode, setIsCinemaMode] = useState(false);
     const [activeTab, setActiveTab] = useState('notes');
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         fetchModuleData();
     }, [id]);
 
-    // Heartbeat: Sync watch time every 15 seconds if it's a video
+    // Unified Heartbeat: Sync watch time every 15 seconds
     useEffect(() => {
-        let interval;
-        if (activeResource?.type === 'video' && watchTime > 0) {
-            interval = setInterval(async () => {
-                try {
-                    await api.post(`/modules/${id}/resources/${activeResource.id}/update-progress/`, {
-                        watch_time: watchTime,
-                        last_position: 0
-                    });
-                } catch (e) {
-                    console.error("Heartbeat sync failed", e);
-                }
-            }, 15000);
-        }
-        return () => clearInterval(interval);
+        if (!activeResource) return;
+
+        const heartbeat = setInterval(async () => {
+            try {
+                // Pulse sync via Unified Telemetry Wrapper
+                await Telemetry.track(id, activeResource.id, {
+                    duration_delta: 15,
+                    watch_time: watchTime,
+                    completed: activeResource.type === 'video' ? watchTime > 30 : true
+                });
+
+                // Refresh local progress state
+                const progressRes = await api.get(`/modules/${id}/progress/`);
+                setProgress(progressRes.data);
+            } catch (error) {
+                console.error('[Telemetry] Sync failed', error);
+            }
+        }, 15000);
+
+        return () => clearInterval(heartbeat);
     }, [activeResource, watchTime, id]);
 
     // Simulated watch time increment
     useEffect(() => {
-        let timer;
-        if (activeResource?.type === 'video') {
-            timer = setInterval(() => {
-                setWatchTime(prev => prev + 1);
-            }, 1000);
-        } else {
-            setWatchTime(0);
-        }
+        if (!activeResource || activeResource.type !== 'video') return;
+
+        const timer = setInterval(() => {
+            setWatchTime(prev => prev + 1);
+        }, 1000);
+
         return () => clearInterval(timer);
     }, [activeResource]);
 
     const fetchModuleData = async () => {
         try {
             setLoading(true);
-            const [moduleRes, progressRes, submissionRes] = await Promise.all([
-                api.get(`/modules/${id}/`),
-                api.get(`/modules/${id}/progress/`),
-                api.get(`/assignments/modules/${id}/submissions/`).catch(() => ({ data: [] }))
-            ]);
-            setModule(moduleRes.data);
-            setProgress(progressRes.data);
-            setSubmissions(submissionRes.data);
-            if (moduleRes.data.resources?.length > 0) {
-                setActiveResource(moduleRes.data.resources[0]);
+            setError(null);
+
+            // CRITICAL: Validate auth token exists before attempting fetch
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                console.warn('[ModulePlayer] No auth token found, redirecting to login');
+                navigate('/login');
+                return;
             }
+
+            console.log(`[ModulePlayer] Fetching module ${id} with valid token`);
+
+            // 1. Fetch Module Data (Critical)
+            let moduleData = null;
+            try {
+                const res = await api.get(`/modules/${id}/`);
+                moduleData = res.data;
+                setModule(moduleData);
+            } catch (err) {
+                console.error('[ModulePlayer] Critical: Failed to load module data', err);
+                throw err; // Re-throw to trigger main error screen
+            }
+
+            // 2. Fetch Progress (Non-Critical)
+            try {
+                const res = await api.get(`/modules/${id}/progress/`);
+                setProgress(res.data);
+            } catch (err) {
+                console.warn('[ModulePlayer] Warning: Failed to load progress', err);
+                // Don't block
+            }
+
+            // 3. Fetch Submissions (Non-Critical)
+            try {
+                const res = await api.get(`/assignments/modules/${id}/submissions/`);
+                setSubmissions(res.data);
+            } catch (err) {
+                // Ignore
+                setSubmissions([]);
+            }
+
+            console.log(`[ModulePlayer] Successfully loaded module: ${moduleData.title}`);
+
+            // Log assignment status for debugging
+            if (moduleData.is_assigned === false) {
+                console.log(`[ModulePlayer] Module not assigned: ${moduleData.assignment_message}`);
+            }
+
+            if (moduleData.resources?.length > 0) {
+                setActiveResource(moduleData.resources[0]);
+            } else {
+                console.warn('[ModulePlayer] Module has no resources');
+            }
+
         } catch (error) {
-            console.error("Failed to load module", error);
+            // Auth errors (401/403/404 with auth) are handled by API interceptor
+            // which will force logout and redirect
+            // If we reach here, it's a real resource issue (module doesn't exist, etc.)
+            console.error('[ModulePlayer] Module fetch error:', error);
+
+            const errorMessage = error.response?.status === 404
+                ? 'Module Not Found'
+                : error.response?.data?.detail || 'Failed to load module data. Please try again.';
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
     };
 
     const handleResourceClick = async (resource) => {
+        // Reset local watch time for the new resource
+        setWatchTime(0);
         setActiveResource(resource);
+
         try {
-            await api.post(`/modules/${id}/resources/${resource.id}/complete/`);
+            // Signal immediate focus transition
+            await Telemetry.track(id, resource.id, {
+                completed: resource.type !== 'video' // Non-videos complete on engagement
+            });
             const progressRes = await api.get(`/modules/${id}/progress/`);
             setProgress(progressRes.data);
         } catch (error) {
-            console.error("Failed to update progress", error);
+            console.error("[Telemetry] Focus switch failed", error);
         }
     };
 
-    const getEmbedUrl = (url) => {
-        if (!url) return null;
-        const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const match = url.match(youtubeRegex);
-        return match && match[1] ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&modestbranding=1` : null;
-    };
+
 
     const handleQuizStart = () => {
         navigate(`/modules/${id}/quiz`);
@@ -104,7 +164,50 @@ const ModulePlayer = () => {
         </div>
     );
 
-    if (!module) return <div className="p-20 text-center font-black uppercase tracking-widest text-red-500">Node Corruption Detected</div>;
+    if (error) return (
+        <div className="flex flex-col items-center justify-center h-[80vh] gap-6 p-8">
+            <div className="w-20 h-20 rounded-full bg-red-500/10 border-2 border-red-500/20 flex items-center justify-center">
+                <svg className="w-10 h-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div className="text-center space-y-2 max-w-md">
+                <h2 className="text-2xl font-black uppercase tracking-tighter text-red-500">
+                    {error === 'Module Not Found' ? 'Module Not Found' : 'Module Load Failed'}
+                </h2>
+                <p className="text-muted-foreground">
+                    {error === 'Module Not Found'
+                        ? 'The requested knowledge node could not be located in the archives.'
+                        : error}
+                </p>
+            </div>
+            <div className="flex gap-4">
+                <Button onClick={() => fetchModuleData()} className="bg-primary hover:bg-primary/90">
+                    Retry Connection
+                </Button>
+                <Button onClick={() => navigate('/dashboard')} variant="outline">
+                    Return to Dashboard
+                </Button>
+            </div>
+        </div >
+    );
+
+    if (!module) return (
+        <div className="flex flex-col items-center justify-center h-[80vh] gap-6 p-8">
+            <div className="w-20 h-20 rounded-full bg-yellow-500/10 border-2 border-yellow-500/20 flex items-center justify-center">
+                <svg className="w-10 h-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div className="text-center space-y-2">
+                <h2 className="text-2xl font-black uppercase tracking-tighter text-yellow-500">No Module Data</h2>
+                <p className="text-muted-foreground max-w-md">The requested module could not be found or contains no data.</p>
+            </div>
+            <Button onClick={() => navigate('/dashboard')} className="bg-primary hover:bg-primary/90">
+                Return to Dashboard
+            </Button>
+        </div>
+    );
 
     const allResourcesDone = module?.resources.every(res =>
         progress?.resources_progress?.find(rp => rp.resource_id === res.id)?.completed
@@ -146,15 +249,37 @@ const ModulePlayer = () => {
                 </div>
             </div>
 
+            {/* Assignment Status Info Banner - For Manager Tracking Info Only */}
+            {module.is_assigned === false && module.assignment_message && (
+                <div className="premium-card bg-blue-500/5 border-blue-500/20 p-6 rounded-2xl">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-blue-500 mb-1">Open Learning Mode</h3>
+                            <p className="text-sm text-white/60 font-medium">You can access all content freely. Progress tracking is managed by your administrator.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+
             {/* Main Application Interface Grid */}
-            <div className={`grid gap-8 transition-all duration-700 ${isCinemaMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[380px_1fr]'}`}>
+            <div className={`grid gap-6 md:gap-8 transition-all duration-700 ${isCinemaMode ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-[380px_1fr]'}`}>
 
                 {/* Curriculum Rail - Hidden in Cinema Mode */}
                 {!isCinemaMode && (
                     <div className="flex flex-col gap-6 animate-in">
                         <div className="premium-card bg-card/40 backdrop-blur-2xl border-white/5 flex flex-col h-[700px]">
                             <div className="flex items-center justify-between mb-8">
-                                <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">Knowledge Map</h3>
+                                <div>
+                                    <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">Knowledge Map</h3>
+                                    <p className="text-[9px] font-bold text-primary uppercase mt-1">Matrix Active</p>
+                                </div>
                                 <div className="h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
                                     <div className="h-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" style={{ width: `${(progress?.resources_progress?.filter(r => r.completed).length / module.resources.length) * 100}%` }} />
                                 </div>
@@ -179,12 +304,26 @@ const ModulePlayer = () => {
                                                 </div>
                                                 <div className="flex-1 truncate">
                                                     <p className={`font-black uppercase tracking-tighter text-xs ${isAct ? 'text-white' : 'text-white/80'}`}>{res.title}</p>
-                                                    <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isAct ? 'text-white/60' : 'text-white/30'}`}>{res.type}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <p className={`text-[9px] font-bold uppercase tracking-widest ${isAct ? 'text-white/60' : 'text-white/30'}`}>{res.type}</p>
+                                                        {isComp && <span className={`text-[8px] font-black uppercase ${isAct ? 'text-white/40' : 'text-primary/60'}`}>• Verified</span>}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </button>
                                     );
                                 })}
+                            </div>
+
+                            <div className="mt-6 pt-6 border-t border-white/5 space-y-4">
+                                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-white/20">
+                                    <span>Telemetry Status</span>
+                                    <span className="text-primary">Optimized</span>
+                                </div>
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-4">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 italic">Syncing with Neural Core...</p>
+                                </div>
                             </div>
                         </div>
                     </div>

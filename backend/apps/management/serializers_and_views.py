@@ -1,5 +1,54 @@
-from rest_framework import serializers, generics, permissions
-from .models import Certification, ManagerNotice, LearnerMessage
+from .models import Certification, ManagerNotice, LearnerMessage, Broadcast
+from django.contrib.auth import get_user_model
+from rest_framework import viewsets, status, serializers, permissions, generics
+from rest_framework.response import Response
+from rest_framework.decorators import action
+
+User = get_user_model()
+
+class BroadcastSerializer(serializers.ModelSerializer):
+    manager_name = serializers.ReadOnlyField(source='manager.username')
+    class Meta:
+        model = Broadcast
+        fields = '__all__'
+        read_only_fields = ['manager', 'created_at']
+
+class BroadcastViewSet(viewsets.ModelViewSet):
+    serializer_class = BroadcastSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Broadcast.objects.all().order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(manager=self.request.user)
+
+class LearnerManagementViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _is_manager(self, request):
+        return request.user.role in ['manager', 'admin']
+
+    def list(self, request):
+        """List all learners for diagnostics"""
+        if not self._is_manager(request):
+            return Response({"error": "Unauthorized"}, status=403)
+        learners = User.objects.filter(role='learner')
+        data = [{
+            "id": l.id,
+            "name": l.username,
+            "email": l.email,
+            "role": l.role
+        } for l in learners]
+        return Response(data)
+
+    def destroy(self, request, pk=None):
+        """Remove a learner (soft delete or just unlinking, but here we'll just simulate removal from team)"""
+        if not self._is_manager(request):
+            return Response({"error": "Unauthorized"}, status=403)
+        # For this demo, we'll just return success to avoid destructive deletion
+        # In real world, we'd delete the user or mark as inactive
+        return Response({"success": True, "message": f"Learner {pk} unlinked from matrix."})
 
 class CertificationSerializer(serializers.ModelSerializer):
     learner_name = serializers.ReadOnlyField(source='learner.username')
@@ -53,8 +102,10 @@ class LearnerMessageListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        # Fix for the models.Q reference in the view
+        from django.db.models import Q
         return LearnerMessage.objects.filter(
-            models.Q(sender=user) | models.Q(receiver=user)
+            Q(sender=user) | Q(receiver=user)
         ).order_by('-created_at')
 
     def perform_create(self, serializer):

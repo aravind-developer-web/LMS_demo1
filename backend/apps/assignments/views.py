@@ -37,42 +37,31 @@ class SubmissionCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, module_id):
-        assignment = generics.get_object_or_404(Assignment, user=request.user, module_id=module_id)
+        print(f"DEBUG: SubmissionCreateView hit for module {module_id}, user {request.user}")
+        # Open Access: Auto-create assignment if it doesn't exist for this learner
+        from apps.modules.models import Module
         
+        # Open Access: Atomic Auto-enrollment
+        from apps.modules.models import Module
+        
+        assignment, created = Assignment.objects.get_or_create(
+            user=request.user, 
+            module_id=module_id,
+            defaults={
+                'assigned_by': request.user, # Self-enrolled
+                'status': 'in_progress'
+            }
+        )
+
         serializer = SubmissionSerializer(data=request.data)
+
         if serializer.is_valid():
             serializer.save(assignment=assignment)
             
-            # Check for Module Completion
-            from apps.modules.models import Module, ModuleProgress, ResourceProgress
-            module = assignment.module
-            total_resources = module.resources.count()
-            completed_resources = ResourceProgress.objects.filter(
-                user=request.user, 
-                resource__module=module, 
-                completed=True
-            ).count()
-            
-            resources_done = total_resources > 0 and completed_resources >= total_resources
-            
-            quiz_requirements_met = True
-            if module.has_quiz:
-                from apps.quiz.models import QuizAttempt, Quiz
-                quiz = Quiz.objects.filter(module=module).first()
-                if quiz:
-                    quiz_requirements_met = QuizAttempt.objects.filter(user=request.user, quiz=quiz, passed=True).exists()
-                else:
-                    quiz_requirements_met = False
-            
-            if resources_done and quiz_requirements_met:
-                mod_progress, _ = ModuleProgress.objects.get_or_create(user=request.user, module=module)
-                mod_progress.status = 'completed'
-                mod_progress.completed_at = timezone.now()
-                mod_progress.save()
-                
-                assignment.status = 'completed'
-                assignment.completed_at = timezone.now()
-                assignment.save()
+            # Principal Progress Sync
+            from apps.modules.models import ModuleProgress
+            mod_progress, _ = ModuleProgress.objects.get_or_create(user=request.user, module=module)
+            mod_progress.check_completion()
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
