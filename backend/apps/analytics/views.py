@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from .intelligence import IntelligenceEngine
+from .cognitive_intelligence import LearnerIntelligenceEngine
 from .models import ManagerAction
 
 User = get_user_model()
@@ -70,4 +71,14 @@ class ManagerAnalyticsViewSet(viewsets.ViewSet):
         
         return Response({"status": "action_recorded", "id": action.id})
 
-    # Legacy views migrated/restructured as needed...
+    @action(detail=False, methods=['get'], url_path='intelligence-overview')
+    def intelligence_overview(self, request):
+        """
+        Cognitive Intelligence Overview
+        Returns derived cognitive states for all learners.
+        """
+        if not self._is_manager(request):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        overview = LearnerIntelligenceEngine.get_intelligence_overview()
+        return Response(overview)
