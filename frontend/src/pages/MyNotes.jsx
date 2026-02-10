@@ -1,26 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Search, FileText, Calendar, ArrowRight, BookOpen, Clock, Sparkles } from 'lucide-react';
+import { Search, FileText, Calendar, ArrowRight, BookOpen, Clock, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 
 const MyNotes = () => {
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [lastUpdated, setLastUpdated] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchNotes();
+
+        // Auto-refresh every 60 seconds
+        const interval = setInterval(fetchNotes, 60000);
+        return () => clearInterval(interval);
     }, []);
 
     const fetchNotes = async () => {
         try {
-            const response = await api.get('/notes/');
+            setLoading(true);
+            setError(null);
+
+            const response = await api.get('/notes/list/');
             setNotes(response.data);
-        } catch (error) {
-            console.error("Failed to fetch notes", error);
+            setLastUpdated(new Date());
+
+            console.log('[Notes] Loaded:', response.data.length, 'notes');
+        } catch (err) {
+            console.error("[Notes] Failed to fetch:", err);
+            setError(err.response?.data?.error || 'Failed to load notes');
         } finally {
             setLoading(false);
         }
@@ -31,7 +44,15 @@ const MyNotes = () => {
         note.module_title.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) return (
+    const getDataAge = () => {
+        if (!lastUpdated) return null;
+        const seconds = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        return `${Math.floor(seconds / 3600)}h ago`;
+    };
+
+    if (loading && !lastUpdated) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-muted-foreground font-black uppercase tracking-widest text-xs">Accessing Knowledge Journal...</p>
@@ -47,21 +68,55 @@ const MyNotes = () => {
                         <Sparkles className="text-primary" size={32} /> Knowledge Journal
                     </h1>
                     <p className="text-muted-foreground mt-1 text-lg font-medium">A centralized repository of your insights and architectural observations.</p>
+
+                    {lastUpdated && (
+                        <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                            <Clock size={12} />
+                            <span>Last synced {getDataAge()}</span>
+                        </div>
+                    )}
                 </div>
 
-                <div className="relative w-full md:w-80 group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
-                    <input
-                        type="text"
-                        placeholder="SEARCH YOUR INSIGHTS..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-12 pl-12 pr-6 rounded-2xl border border-border bg-card focus:ring-2 ring-primary/20 transition-all outline-none font-black text-xs uppercase tracking-widest"
-                    />
+                <div className="flex gap-2 items-center w-full md:w-auto">
+                    <Button
+                        onClick={fetchNotes}
+                        disabled={loading}
+                        className="bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                    >
+                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                    </Button>
+
+                    <div className="relative flex-1 md:w-80 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
+                        <input
+                            type="text"
+                            placeholder="SEARCH YOUR INSIGHTS..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full h-12 pl-12 pr-6 rounded-2xl border border-border bg-card focus:ring-2 ring-primary/20 transition-all outline-none font-black text-xs uppercase tracking-widest"
+                        />
+                    </div>
                 </div>
             </div>
 
-            {filteredNotes.length === 0 ? (
+            {/* Error State */}
+            {error && (
+                <Card className="p-6 bg-red-500/5 border-red-500/20">
+                    <div className="flex items-center gap-3">
+                        <AlertCircle className="text-red-500" size={24} />
+                        <div>
+                            <h3 className="font-bold text-red-400">Failed to Load Notes</h3>
+                            <p className="text-sm text-slate-400">{error}</p>
+                        </div>
+                        <Button onClick={fetchNotes} className="ml-auto">
+                            Retry
+                        </Button>
+                    </div>
+                </Card>
+            )}
+
+            {/* Notes Grid */}
+            {!error && filteredNotes.length === 0 ? (
                 <div className="text-center py-32 bg-card/40 backdrop-blur-xl rounded-[40px] border-2 border-dashed border-border flex flex-col items-center justify-center">
                     <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6 border border-border opacity-20">
                         <FileText size={48} />
@@ -96,7 +151,7 @@ const MyNotes = () => {
                             </CardHeader>
 
                             <CardContent className="px-8 flex-1 overflow-hidden relative group/content">
-                                <div className="text-sm font-medium text-foreground/70 leading-relaxed whitespace-pre-wrap font-serif italic text-lg opacity-80 group-hover:opacity-100 transition-opacity">
+                                <div className="text-sm font-medium text-foreground/70 leading-relaxed whitespace-pre-wrap font-serif italic text-lg opacity-80 group-hover:opacity-100 transition-opacity line-clamp-6">
                                     "{note.content}"
                                 </div>
                                 {/* Gradient Fade for long notes */}
