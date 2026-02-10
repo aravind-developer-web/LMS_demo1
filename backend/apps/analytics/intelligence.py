@@ -106,7 +106,9 @@ class IntelligenceEngine:
             "avg_focus_mins": round(avg_focus, 1),
             "avg_accuracy": round(avg_accuracy, 1),
             "assignment_rate": round(assignment_rate, 1),
-            "at_risk_count": risk_count
+            "at_risk_count": risk_count,
+            "computed_at": timezone.now().isoformat(),
+            "data_freshness_seconds": 0  # Real-time computation
         }
 
     @staticmethod
@@ -169,7 +171,8 @@ class IntelligenceEngine:
                 "engagement": engagement,
                 "stability": stability,
                 "velocity": velocity
-            }
+            },
+            "computed_at": timezone.now().isoformat()
         }
 
     @staticmethod

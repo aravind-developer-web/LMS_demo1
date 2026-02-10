@@ -89,7 +89,6 @@ const Layout = () => {
                             {!collapsed && <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Command Center</p>}
                             <SidebarLink to="/dashboard/intelligence" icon={BrainCircuit} label="Neural Intelligence" active={location.pathname === '/dashboard/intelligence'} collapsed={collapsed} />
                             <SidebarLink to="/dashboard/analytics" icon={BarChart3} label="Team Analytics" active={location.pathname === '/dashboard/analytics'} collapsed={collapsed} />
-                            <SidebarLink to="/dashboard/learning" icon={LayoutDashboard} label="Personal Node" active={location.pathname === '/dashboard/learning'} collapsed={collapsed} />
                             <div className="pt-4">
                                 {!collapsed && <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Vault</p>}
                                 <SidebarLink to="/my-notes" icon={MessageSquare} label="Neural Notes" active={location.pathname === '/my-notes'} collapsed={collapsed} />
@@ -148,7 +147,7 @@ const Layout = () => {
                             {isManager ? (
                                 <>
                                     <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Command Center</p>
-                                    <SidebarLink to="/dashboard/learning" icon={LayoutDashboard} label="Personal Node" active={location.pathname === '/dashboard/learning'} collapsed={false} />
+                                    <SidebarLink to="/dashboard/intelligence" icon={BrainCircuit} label="Neural Intelligence" active={location.pathname === '/dashboard/intelligence'} collapsed={false} />
                                     <SidebarLink to="/dashboard/analytics" icon={BarChart3} label="Team Analytics" active={location.pathname === '/dashboard/analytics'} collapsed={false} />
                                     <SidebarLink to="/my-notes" icon={MessageSquare} label="Neural Notes" active={location.pathname === '/my-notes'} collapsed={false} />
                                 </>
