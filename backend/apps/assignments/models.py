@@ -24,19 +24,3 @@ class Assignment(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.module.title}"
 
-class Submission(models.Model):
-    STATUS_CHOICES = (
-        ('pending', 'Pending'),
-        ('reviewed', 'Reviewed'),
-        ('graded', 'Graded'),
-    )
-
-    assignment = models.ForeignKey(Assignment, related_name='submissions', on_delete=models.CASCADE)
-    content = models.TextField()
-    submitted_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    feedback = models.TextField(blank=True, null=True)
-    grade = models.FloatField(null=True, blank=True)
-
-    def __str__(self):
-        return f"Submission for {self.assignment.module.title} by {self.assignment.user.username}"
