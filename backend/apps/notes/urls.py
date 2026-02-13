@@ -1,16 +1,8 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from . import views
-
-router = DefaultRouter()
-router.register(r'api', views.NoteViewSet, basename='notes-api')
-router.register(r'manager', views.ManagerNoteAnalyticsViewSet, basename='manager-notes')
+from django.urls import path
+from .views import NoteListCreateView, NoteDetailView
 
 urlpatterns = [
-    # New ViewSet routes
-    path('', include(router.urls)),
-    
-    # Legacy routes for backward compatibility
-    path('list/', views.NoteListView.as_view(), name='note_list'),
-    path('module/<int:module_id>/', views.NoteRetrieveUpdateView.as_view(), name='note_detail'),
+    path('list/', NoteListCreateView.as_view(), name='note_list_create'),
+    path('<int:pk>/', NoteDetailView.as_view(), name='note_detail'),
+    path('create/', NoteListCreateView.as_view(), name='note_create_alias'), # Support both paths
 ]

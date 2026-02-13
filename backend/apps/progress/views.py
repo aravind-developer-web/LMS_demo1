@@ -1,7 +1,14 @@
-from rest_framework import generics, permissions, views, response
+from rest_framework import generics, permissions
 from .models import ModuleProgress
 from .serializers import ModuleProgressSerializer
 from django.utils import timezone
+
+class ProgressListView(generics.ListAPIView):
+    serializer_class = ModuleProgressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ModuleProgress.objects.filter(user=self.request.user)
 
 class ProgressUpdateView(generics.RetrieveUpdateAPIView):
     serializer_class = ModuleProgressSerializer

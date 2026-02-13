@@ -1,94 +1,59 @@
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { User, Shield, Key, Mail, CircuitBoard, LogOut, ArrowRight } from 'lucide-react';
-import { toast } from 'react-hot-toast';
 
 const Profile = () => {
     const { user, logout } = useAuth();
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in pb-20">
-            {/* Header */}
-            <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 blur-[100px] pointer-events-none" />
-                <div className="relative z-10 text-center py-10">
-                    <div className="w-32 h-32 mx-auto rounded-full bg-[#030712] border-4 border-white/5 flex items-center justify-center mb-6 shadow-2xl relative group">
-                        <div className="absolute inset-0 rounded-full border border-primary/30 animate-pulse" />
-                        <User size={64} className="text-primary group-hover:scale-110 transition-transform duration-500" />
-                    </div>
-                    <h1 className="text-5xl font-black italic uppercase tracking-tighter text-white">{user?.username}</h1>
-                    <p className="text-muted-foreground mt-2 font-medium tracking-widest uppercase text-sm">{user?.role} Unit</p>
+        <div className="max-w-2xl mx-auto space-y-8 pb-20">
+            <header className="text-center py-10">
+                <div className="w-24 h-24 mx-auto rounded-full bg-slate-200 flex items-center justify-center mb-6 border-4 border-white shadow-md">
+                    <span className="text-3xl font-bold text-slate-500">
+                        {user?.username?.charAt(0).toUpperCase()}
+                    </span>
                 </div>
-            </div>
+                <h1 className="text-3xl font-bold text-slate-900">{user?.username}</h1>
+                <p className="text-slate-500 mt-1 uppercase tracking-widest text-xs font-bold">{user?.role} Account</p>
+            </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <Card className="bg-[#030712] border-white/5 rounded-[32px] overflow-hidden">
-                    <CardHeader className="border-b border-white/5 p-8">
-                        <CardTitle className="flex items-center gap-3 text-xl font-black italic uppercase tracking-tight">
-                            <Shield className="text-blue-500" size={24} /> Identity Signature
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-8 space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                <Mail size={12} /> Neural Address
-                            </label>
-                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-white font-bold">
-                                {user?.email || 'No email registered'}
-                            </div>
+            <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-200 bg-slate-50">
+                    <h2 className="text-lg font-bold text-slate-800">Account Details</h2>
+                </div>
+                <div className="p-6 space-y-6">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address</label>
+                        <div className="p-3 bg-slate-50 rounded border border-slate-100 text-slate-800">
+                            {user?.email || 'No email registered'}
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                <Key size={12} /> Access Level
-                            </label>
-                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-white font-bold uppercase">
-                                {user?.role}
-                            </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Role & Permissions</label>
+                        <div className="p-3 bg-slate-50 rounded border border-slate-100 text-slate-800 uppercase text-sm font-semibold">
+                            {user?.role}
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                <CircuitBoard size={12} /> Node ID
-                            </label>
-                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-slate-400 font-mono text-xs">
-                                USER-UUID-0X{user?.id ? user.id.toString(16).toUpperCase().padStart(8, '0') : '0000'}
-                            </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">User Identifier</label>
+                        <div className="p-3 bg-slate-50 rounded border border-slate-100 text-slate-500 font-mono text-xs">
+                            ID: {user?.id || '0000'}
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                <div className="space-y-8">
-                    <Card className="bg-[#030712] border-white/5 rounded-[32px] overflow-hidden">
-                        <CardHeader className="border-b border-white/5 p-8">
-                            <CardTitle className="flex items-center gap-3 text-xl font-black italic uppercase tracking-tight">
-                                <Key className="text-purple-500" size={24} /> Security Protocols
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-8 space-y-4">
-                            <Button
-                                onClick={() => toast.error('PROTOCOL RESTRICTED: Demo Account Locked')}
-                                variant="outline"
-                                className="w-full h-14 justify-between bg-white/5 border-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-wider rounded-xl"
-                            >
-                                Change Password <ArrowRight size={16} />
-                            </Button>
-                            <Button
-                                onClick={() => toast.success('2FA STATUS: Active (Simulated)')}
-                                variant="outline"
-                                className="w-full h-14 justify-between bg-white/5 border-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-wider rounded-xl"
-                            >
-                                Two-Factor Auth <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded">Disabled</span>
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Button
+                <div className="p-6 bg-slate-50 border-t border-slate-200 flex flex-col gap-3">
+                    <button
                         onClick={logout}
-                        className="w-full h-16 rounded-[24px] bg-red-500/10 hover:bg-red-500 border border-red-500/20 text-red-500 hover:text-white font-black uppercase tracking-widest shadow-xl transition-all"
+                        className="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition-colors shadow-sm"
                     >
-                        Terminate Session <LogOut className="ml-3" size={18} />
-                    </Button>
+                        Sign Out
+                    </button>
+                    <button
+                        className="w-full bg-white text-slate-600 border border-slate-300 py-3 rounded-lg font-bold hover:bg-slate-50 transition-colors"
+                        onClick={() => alert("Password change feature is currently in maintenance.")}
+                    >
+                        Change Password
+                    </button>
                 </div>
             </div>
         </div>

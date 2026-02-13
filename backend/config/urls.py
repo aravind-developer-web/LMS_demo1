@@ -8,9 +8,6 @@ urlpatterns = [
     path('api/quiz/', include('apps.quiz.urls')),
     path('api/assignments/', include('apps.assignments.urls')),
     path('api/notes/', include('apps.notes.urls')),
-    # path('api/progress/', include('apps.progress.urls')),  # Removed: Progress now in modules
+    path('api/progress/', include('apps.progress.urls')),
     path('api/analytics/', include('apps.analytics.urls')),
-    path('api/management/', include('apps.management.urls')),
-    path('api/discussions/', include('apps.discussions.urls')),
-    path('api/ai/', include('apps.ai_assistant.urls')),
 ]

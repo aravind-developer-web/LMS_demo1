@@ -42,12 +42,9 @@ INSTALLED_APPS = [
     'apps.modules',
     'apps.assignments',
     'apps.quiz',
-    # 'apps.progress',  # Removed: Progress tracking now in apps.modules
+    'apps.progress',
     'apps.notes',
     'apps.analytics',
-    'apps.management',
-    'apps.discussions',
-    'apps.ai_assistant',
 ]
 
 MIDDLEWARE = [
