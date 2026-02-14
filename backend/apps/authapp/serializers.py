@@ -35,6 +35,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        try:
+            import os
+            from django.conf import settings
+            with open('db_check.log', 'a') as f:
+                f.write(f"DB Path: {settings.DATABASES['default']['NAME']}\n")
+        except:
+            pass
+        return super().validate(attrs)
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)

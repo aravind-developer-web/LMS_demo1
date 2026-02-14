@@ -1,45 +1,366 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
 const ManagerDashboard = () => {
-    const [stats, setStats] = useState({ total_learners: 0, total_completions: 0 });
+    const [learners, setLearners] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedLearner, setSelectedLearner] = useState(null);
+    const [learnerDetails, setLearnerDetails] = useState(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [stats, setStats] = useState({ total: 0, active: 0, avgProgress: 0 });
+
+    // Stream Upload State
+    const [streamTitle, setStreamTitle] = useState('');
+    const [streamUrl, setStreamUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await api.get('/analytics/');
-                setStats(response.data);
-            } catch (error) {
-                console.error("Failed to fetch analytics", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchStats();
+        fetchData();
+        const interval = setInterval(fetchData, 30000); // Refresh grid every 30s
+        return () => clearInterval(interval);
     }, []);
 
-    if (loading) return <div className="p-8 text-center text-slate-500">Loading management data...</div>;
+    const fetchData = async () => {
+        try {
+            const res = await api.get('/analytics/manager/learner-progress/');
+            setLearners(res.data);
+
+            const total = res.data.length;
+            const active = res.data.filter(l => l.status === 'active').length;
+            const avgProgress = res.data.reduce((acc, l) => acc + (l.progress || 0), 0) / (total || 1);
+
+            setStats({ total, active, avgProgress: Math.round(avgProgress) });
+        } catch (error) {
+            console.error("Telemetry Sync Error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStreamUpload = async (e) => {
+        e.preventDefault();
+        if (!streamTitle || !streamUrl) return;
+
+        setUploading(true);
+        try {
+            await api.post('/modules/stream/upload/', {
+                title: streamTitle,
+                url: streamUrl
+            });
+            alert("Stream Broadcasted Successfully. Curriculum Recalculated.");
+            setStreamTitle('');
+            setStreamUrl('');
+            fetchData(); // Refresh to see impact
+        } catch (error) {
+            console.error("Upload Failed", error);
+            alert("Failed to broadcast stream.");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleViewDetails = async (learner) => {
+        setSelectedLearner(learner);
+        setDrawerOpen(true);
+        // Reset details while fetching
+        setLearnerDetails(null);
+        try {
+            const res = await api.get(`/analytics/manager/${learner.id}/learner_details/`);
+            setLearnerDetails(res.data);
+        } catch (e) {
+            console.error("Detail Extraction Error");
+        }
+    };
+
+    if (loading) return (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-3 bg-white">
+            <div className="w-10 h-10 border-4 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-400 font-bold uppercase tracking-[0.3em] text-[10px]">Initializing Control Tower...</p>
+        </div>
+    );
 
     return (
-        <div className="space-y-8">
-            <header className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900">Manager Overview</h1>
-                <p className="text-slate-600">Basic platform statistics and learner metrics.</p>
+        <div className="flex flex-col gap-8 animate-fade-in pb-20">
+            {/* Header: Command Center Overview */}
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-green-500/50 shadow-sm" />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">System Operational</span>
+                    </div>
+                    <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Control Tower</h1>
+                    <p className="text-gray-500 font-medium text-sm">Deep-dive telemetry and granular learner tracking.</p>
+                </div>
+                <div className="flex gap-4">
+                    <div className="px-5 py-3 bg-gray-900 text-white rounded-2xl shadow-intense flex flex-col items-start gap-0.5">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Global Sync</span>
+                        <span className="text-xl font-bold">{stats.avgProgress}% <span className="text-[10px] text-green-400">Efficiency</span></span>
+                    </div>
+                    <button
+                        onClick={fetchData}
+                        aria-label="Refresh Telemetry Grid"
+                        className="btn-ghost bg-white border border-gray-200 focus:ring-4 focus:ring-gray-200 focus:outline-none rounded-2xl px-5 py-3 font-bold text-sm hover:bg-gray-50 transition-all"
+                    >
+                        Refresh Grid
+                    </button>
+                </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center">
-                    <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Total Learners</h2>
-                    <p className="text-5xl font-black text-blue-600">{stats.total_learners}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+                {/* Main Telemetry Grid */}
+                <div className="bg-white rounded-[32px] border border-gray-100 shadow-strong overflow-hidden p-2">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                                <th className="px-6 py-4">Rank</th>
+                                <th className="px-6 py-4">Learner</th>
+                                <th className="px-6 py-4">Progress</th>
+                                <th className="px-6 py-4 text-center">Time</th>
+                                <th className="px-6 py-4 text-center">Video</th>
+                                <th className="px-6 py-4 text-center">Quiz</th>
+                                <th className="px-6 py-4 text-center">Assn</th>
+                                <th className="px-6 py-4 text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {learners.map((learner) => (
+                                <tr
+                                    key={learner.id}
+                                    onClick={() => handleViewDetails(learner)}
+                                    className="group hover:bg-gray-50/80 transition-all cursor-pointer"
+                                >
+                                    <td className="px-6 py-4 font-mono text-gray-300 text-sm font-bold">#{learner.rank}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-900 font-bold text-xs border border-gray-200">
+                                                {learner.name?.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-gray-900 text-sm">{learner.name}</div>
+                                                <div className="text-[10px] text-gray-500 font-medium">{learner.email}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1.5 w-24">
+                                            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full transition-all duration-1000 ${learner.progress >= 75 ? 'bg-green-500' :
+                                                        learner.progress >= 40 ? 'bg-blue-600' : 'bg-gray-400'
+                                                        }`}
+                                                    style={{ width: `${learner.progress}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-gray-600">{learner.progress}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-center text-xs font-bold text-gray-700">{learner.time_invested}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-[10px] font-bold border border-purple-100">
+                                            {learner.video_score || 0}%
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">
+                                            {learner.quiz_score || 0}%
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 text-[10px] font-bold border border-orange-100">
+                                            {learner.assignment_score || 0}%
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        {learner.status === 'active' && (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 border border-green-200">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-2 animate-pulse" /> Active
+                                            </span>
+                                        )}
+                                        {learner.status === 'slow' && (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-orange-100 text-orange-700 border border-orange-200">
+                                                Slow
+                                            </span>
+                                        )}
+                                        {learner.status === 'stuck' && (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 border border-red-200">
+                                                Stuck
+                                            </span>
+                                        )}
+                                        {learner.status === 'offline' && (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 border border-gray-200">
+                                                Offline
+                                            </span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm text-center">
-                    <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Module Completions</h2>
-                    <p className="text-5xl font-black text-green-600">{stats.total_completions}</p>
+                {/* Upload Stream & Actions */}
+                <div className="space-y-6">
+                    <div className="bg-gray-900 rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-10">
+                            <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" /></svg>
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 relative z-10">Broadcast Stream</h3>
+                        <p className="text-gray-400 text-xs mb-6 relative z-10">Upload a learning vector. System will push to all learner nodes and recalculate global progress.</p>
+
+                        <form onSubmit={handleStreamUpload} className="space-y-4 relative z-10">
+                            <div>
+                                <label htmlFor="stream-title" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Stream Title</label>
+                                <input
+                                    id="stream-title"
+                                    type="text"
+                                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="e.g. Advanced Neural Patterns"
+                                    value={streamTitle}
+                                    onChange={e => setStreamTitle(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="stream-url" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1">Source URL</label>
+                                <input
+                                    id="stream-url"
+                                    type="text"
+                                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="https://..."
+                                    value={streamUrl}
+                                    onChange={e => setStreamUrl(e.target.value)}
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={uploading}
+                                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                            >
+                                {uploading ? 'Broadcasting...' : 'Upload & Sync'}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
+
+            {/* Simplified Learner Detail Drawer */}
+            {drawerOpen && selectedLearner && (
+                <div className="fixed inset-y-0 right-0 w-full md:w-[500px] bg-white shadow-2xl z-50 p-8 flex flex-col gap-8 transform transition-transform border-l border-gray-100 animate-slide-in-right font-sans">
+                    <header className="flex justify-between items-start border-b border-gray-100 pb-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-500/30">
+                                {selectedLearner.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">{selectedLearner.name}</h2>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className={`w-2 h-2 rounded-full ${selectedLearner.status === 'active' ? 'bg-green-500' :
+                                        selectedLearner.status === 'slow' ? 'bg-orange-500' : 'bg-red-500'
+                                        }`} />
+                                    <span className="text-sm font-medium text-gray-500 capitalize">{selectedLearner.status} Status</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100">&times;</button>
+                    </header>
+
+                    {!learnerDetails ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                        </div>
+                    ) : (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gray-50 p-5 rounded-2xl">
+                                    <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Time Invested</p>
+                                    <p className="text-3xl font-bold text-gray-900 mt-1">{selectedLearner.time_invested}</p>
+                                </div>
+                                <div className="bg-gray-50 p-5 rounded-2xl">
+                                    <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Global Rank</p>
+                                    <p className="text-3xl font-bold text-gray-900 mt-1">#{selectedLearner.rank}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest">Detailed Breakdown</h3>
+
+                                <div className="bg-white border border-gray-100 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </div>
+                                        <span className="font-bold text-gray-700">Video Consumption</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-gray-900">{selectedLearner.video_score}%</span>
+                                </div>
+
+                                <div className="bg-white border border-gray-100 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                                        </div>
+                                        <span className="font-bold text-gray-700">Quiz Accuracy</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-gray-900">{selectedLearner.quiz_score}%</span>
+                                </div>
+
+                                <div className="bg-white border border-gray-100 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                        </div>
+                                        <span className="font-bold text-gray-700">Assignments</span>
+                                    </div>
+                                    <span className="text-lg font-bold text-gray-900">{selectedLearner.assignment_score}%</span>
+                                </div>
+                            </div>
+
+                            {/* Weekly Trend */}
+                            {learnerDetails.weekly_mastery && learnerDetails.weekly_mastery.length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest">Engagement Trend (4 Weeks)</h3>
+                                    <div className="grid grid-cols-4 gap-2 h-24 items-end">
+                                        {learnerDetails.weekly_mastery.map((week, idx) => (
+                                            <div key={idx} className="flex flex-col items-center gap-2 group">
+                                                <div className="w-full bg-blue-100 rounded-t-lg relative overflow-hidden transition-all group-hover:bg-blue-200" style={{ height: `${Math.max(10, week.score)}%` }}>
+                                                    <div className="absolute inset-0 bg-blue-500 opacity-20"></div>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-gray-500">{week.week}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Module Breakdown */}
+                            {learnerDetails.module_breakdown && (
+                                <div className="space-y-4">
+                                    <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest">Module Performance</h3>
+                                    <div className="space-y-3">
+                                        {learnerDetails.module_breakdown.map((mod) => (
+                                            <div key={mod.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 flex justify-between items-center">
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-bold text-gray-900 truncate pr-2">{mod.title}</p>
+                                                    <p className="text-[10px] text-gray-500">Video: {mod.video_progress}%</p>
+                                                </div>
+                                                <div className="flex gap-2 text-[10px]">
+                                                    <span className={`px-2 py-1 rounded bg-white border ${mod.quiz_score > 70 ? 'text-green-600 border-green-200' : 'text-gray-500 border-gray-200'}`}>
+                                                        Quiz: {mod.quiz_score}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded bg-white border ${mod.assignment_status === 'completed' ? 'text-blue-600 border-blue-200' : 'text-orange-500 border-orange-200'}`}>
+                                                        {mod.assignment_status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
+                    )}
+                </div>
+            )}
+            {drawerOpen && <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={() => setDrawerOpen(false)} />}
         </div>
     );
 };

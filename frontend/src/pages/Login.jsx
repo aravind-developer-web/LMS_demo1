@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const Login = () => {
@@ -27,53 +27,58 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-            <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 border border-slate-200">
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-slate-900">Sign In</h1>
-                    <p className="text-slate-600">Access your learning portal</p>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans">
+            <div className="max-w-md w-full bg-white rounded-xl shadow-xl shadow-gray-200/50 p-10 border border-gray-200/60">
+                <div className="text-center mb-10">
+                    <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl mx-auto mb-4 shadow-lg shadow-blue-500/20" role="img" aria-label="LMS Platform Logo">L</div>
+                    <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Enterprise Sign In</h1>
+                    <p className="text-gray-500 text-sm mt-1 font-medium">Access your professional learning gateway</p>
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-50 text-red-600 rounded border border-red-200 text-sm">
+                    <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-lg border border-red-100 text-sm font-medium" role="alert">
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2" htmlFor="username">Corporate Identity</label>
                         <input
+                            id="username"
                             type="text"
+                            autoComplete="username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            className="w-full px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            placeholder="Enter your username"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/50 focus:bg-white outline-none transition-all placeholder:text-gray-300 text-sm"
+                            placeholder="username@enterprise"
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2" htmlFor="password">Security Protocol</label>
                         <input
+                            id="password"
                             type="password"
+                            autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            className="w-full px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            placeholder="Enter your password"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/50 focus:bg-white outline-none transition-all placeholder:text-gray-300 text-sm"
+                            placeholder="••••••••"
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                        className="w-full bg-gray-900 text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-all shadow-sm disabled:opacity-50 active:scale-[0.98]"
                     >
-                        {loading ? 'Authenticating...' : 'Sign In'}
+                        {loading ? 'Authenticating...' : 'Establish Session'}
                     </button>
                 </form>
 
-                <div className="mt-6 text-center text-sm text-slate-500">
-                    &copy; {new Date().getFullYear()} LMS Platform
+                <div className="mt-8 text-center text-sm text-gray-500 font-medium">
+                    New associate? <Link to="/register" className="text-blue-600 font-bold hover:underline">Register Identity</Link>
                 </div>
             </div>
         </div>

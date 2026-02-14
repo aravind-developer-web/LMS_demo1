@@ -14,8 +14,10 @@ class Assignment(models.Model):
     module = models.ForeignKey(Module, related_name='assignments', on_delete=models.CASCADE)
     assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='created_assignments', on_delete=models.SET_NULL, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    content = models.TextField(blank=True, help_text="Submitted assignment content")
     due_date = models.DateTimeField(null=True, blank=True)
     assigned_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

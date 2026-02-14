@@ -37,109 +37,122 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 py-12">
-            <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 border border-slate-200">
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-slate-900">Create Account</h1>
-                    <p className="text-slate-600">Join the learning platform</p>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 py-20 font-sans">
+            <div className="max-w-2xl w-full bg-white rounded-xl shadow-xl shadow-gray-200/50 p-12 border border-gray-200/60">
+                <div className="text-center mb-10">
+                    <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl mx-auto mb-4 shadow-lg shadow-blue-500/20" role="img" aria-label="LMS Platform Logo">L</div>
+                    <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">Create Associate Profile</h1>
+                    <p className="text-gray-500 text-sm mt-1 font-medium">Join our global enterprise learning ecosystem</p>
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-50 text-red-600 rounded border border-red-200 text-sm">
+                    <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-lg border border-red-100 text-sm font-medium" role="alert">
                         {error}
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">First Name</label>
-                            <input
-                                name="first_name"
-                                type="text"
-                                value={formData.first_name}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                                placeholder="John"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Last Name</label>
-                            <input
-                                name="last_name"
-                                type="text"
-                                value={formData.last_name}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                                placeholder="Doe"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">Username</label>
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div className="space-y-2">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="first_name">Given Name</label>
                         <input
+                            id="first_name"
+                            name="first_name"
+                            type="text"
+                            value={formData.first_name}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/50 focus:bg-white outline-none transition-all text-sm"
+                            placeholder="John"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="last_name">Surname</label>
+                        <input
+                            id="last_name"
+                            name="last_name"
+                            type="text"
+                            value={formData.last_name}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/50 focus:bg-white outline-none transition-all text-sm"
+                            placeholder="Doe"
+                        />
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="username">Network Identity</label>
+                        <input
+                            id="username"
                             name="username"
                             type="text"
                             value={formData.username}
                             onChange={handleChange}
                             required
-                            className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                            placeholder="johndoe123"
+                            autoComplete="username"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/50 focus:bg-white outline-none transition-all text-sm"
+                            placeholder="johndoe.ext"
                         />
                     </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
+                    <div className="md:col-span-2 space-y-2">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="email">Corporate Email</label>
                         <input
+                            id="email"
                             name="email"
                             type="email"
                             value={formData.email}
                             onChange={handleChange}
                             required
-                            className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                            placeholder="john@example.com"
+                            autoComplete="email"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/50 focus:bg-white outline-none transition-all text-sm"
+                            placeholder="john.doe@enterprise.com"
                         />
                     </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
+                    <div className="md:col-span-2 space-y-2">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider" htmlFor="password">Security Protocol</label>
                         <input
+                            id="password"
                             name="password"
                             type="password"
                             value={formData.password}
                             onChange={handleChange}
                             required
-                            className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                            autoComplete="new-password"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600/50 focus:bg-white outline-none transition-all text-sm placeholder:text-gray-300"
                             placeholder="••••••••"
                         />
+                        {formData.password && formData.password.length < 8 && (
+                            <p className="text-[10px] text-orange-600 font-bold uppercase tracking-tight">Security Note: Recommend 8+ characters</p>
+                        )}
                     </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">Role</label>
-                        <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-slate-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                    <div className="md:col-span-2 space-y-2">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Access Privilege</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, role: 'learner' })}
+                                className={`py-3.5 rounded-lg font-bold border transition-all text-sm ${formData.role === 'learner' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-200'}`}
+                            >
+                                Associate
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, role: 'manager' })}
+                                className={`py-3.5 rounded-lg font-bold border transition-all text-sm ${formData.role === 'manager' ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-900'}`}
+                            >
+                                Oversight
+                            </button>
+                        </div>
+                    </div>
+                    <div className="md:col-span-2 mt-4">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-gray-900 text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-all shadow-sm disabled:opacity-50 active:scale-[0.98]"
                         >
-                            <option value="learner">Learner</option>
-                            <option value="manager">Manager</option>
-                        </select>
+                            {loading ? 'Committing network profile...' : 'Finalize Registration'}
+                        </button>
+                        <p className="text-center mt-6 text-sm text-gray-500 font-medium">
+                            Already authenticated? <Link to="/login" className="text-blue-600 font-bold hover:underline">Sign In Instead</Link>
+                        </p>
                     </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition-colors disabled:bg-blue-300 mt-4"
-                    >
-                        {loading ? 'Creating Account...' : 'Register'}
-                    </button>
                 </form>
-
-                <div className="mt-6 text-center text-sm text-slate-500">
-                    Already have an account? <Link to="/login" className="text-blue-600 hover:underline">Sign In</Link>
-                </div>
             </div>
         </div>
     );
